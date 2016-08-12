@@ -1,0 +1,95 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
+ */
+package storm.benchmark.lib.spout;
+
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichSpout;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Values;
+import java.util.HashMap;
+import org.apache.log4j.Logger;
+import storm.benchmark.tools.FileReader;
+
+import java.util.Map;
+
+public class FileReadSpoutTime extends BaseRichSpout {
+
+    private static final Logger LOG = Logger.getLogger(FileReadSpout.class);
+    private static final long serialVersionUID = -2582705611472467172L;
+
+    public static final String DEFAULT_FILE = "/resources/A_Tale_of_Two_City.txt";
+    public static final boolean DEFAULT_ACK = false;
+    public static final String FIELDS = "sentence";
+
+    public final boolean ackEnabled;
+    public final FileReader reader;
+    private SpoutOutputCollector collector;
+
+    private long count = 0;
+
+    public static final HashMap<Long, Long> timeStamps = 
+            new HashMap<Long, Long>();
+    public FileReadSpoutTime() {
+        this(DEFAULT_ACK, DEFAULT_FILE);
+    }
+
+    public FileReadSpoutTime(boolean ackEnabled) {
+        this(ackEnabled, DEFAULT_FILE);
+    }
+
+    public FileReadSpoutTime(boolean ackEnabled, String file) {
+        this(ackEnabled, new FileReader(file));
+    }
+
+    public FileReadSpoutTime(boolean ackEnabled, FileReader reader) {
+        this.ackEnabled = ackEnabled;
+        this.reader = reader;
+    }
+
+    @Override
+    public void open(Map conf, TopologyContext context,
+            SpoutOutputCollector collector) {
+        this.collector = collector;
+    }
+
+    @Override
+    public void nextTuple() {
+        if (ackEnabled) {
+            collector.emit(new Values(reader.nextLine()), count);
+            timeStamps.put(count, System.currentTimeMillis());
+            count++;
+        } else {
+            collector.emit(new Values(reader.nextLine()));
+        }
+    }
+
+    @Override
+    public void ack(Object msgId){
+        Long id = (Long)msgId;
+        System.out.println(System.currentTimeMillis()-timeStamps.get(id));
+        timeStamps.remove(id);
+        //timeStamps.put(id, System.currentTimeMillis()-timeStamps.get(id));
+    }
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+        declarer.declare(new Fields(FIELDS));
+    }
+}
+
