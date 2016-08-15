@@ -7,7 +7,7 @@ import itertools
 from pyDOE import *
 
 def write(design_space):
-    folder = "config_files1"
+    folder = "config_files"
     if not os.path.exists(folder):
         os.makedirs(folder)
     for i in range(len(design_space)):

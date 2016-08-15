@@ -33,6 +33,7 @@ import storm.benchmark.util.BenchmarkUtils;
 import storm.benchmark.benchmarks.Nop;
 
 import org.apache.storm.metric.LoggingMetricsConsumer;
+import org.apache.storm.utils.Utils;
 
 public class RollingCount extends StormBenchmark {
 
@@ -45,6 +46,7 @@ public class RollingCount extends StormBenchmark {
   public static final String SPLIT_NUM = "component.split_bolt_num";
   public static final String COUNTER_ID = "rolling_count";
   public static final String COUNTER_NUM = "component.rolling_count_bolt_num";
+  public static final String FILE_CONFIG = "spout.file";
 
   public static final int DEFAULT_SPOUT_NUM = 4;
   public static final int DEFAULT_SP_BOLT_NUM = 8;
@@ -62,8 +64,9 @@ public class RollingCount extends StormBenchmark {
             RollingBolt.DEFAULT_SLIDING_WINDOW_IN_SECONDS);
     final int emitFreq = BenchmarkUtils.getInt(config, EMIT_FREQ,
             RollingBolt.DEFAULT_EMIT_FREQUENCY_IN_SECONDS);
+    final String filename = Utils.getString(Utils.get(config, FILE_CONFIG, "/A_Tale_of_Two_City.txt"));
 
-    spout = new FileReadSpout(BenchmarkUtils.ifAckEnabled(config));
+    spout = new FileReadSpout(BenchmarkUtils.ifAckEnabled(config), filename);
 
     TopologyBuilder builder = new TopologyBuilder();
 
