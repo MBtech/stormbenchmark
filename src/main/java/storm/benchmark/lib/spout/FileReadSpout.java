@@ -44,7 +44,7 @@ public class FileReadSpout extends BaseRichSpout {
     private static final long serialVersionUID = -2582705611472467172L;
  
     //public static final String DEFAULT_FILE = "/resources/A_Tale_of_Two_City.txt";
-    public static final String DEFAULT_FILE = "hdfs://nimbus1:9000/A_Tale_of_Two_City.txt";
+    public static final String DEFAULT_FILE = "hdfs://nimbus1:9000/tweet_data.txt";
     
     public static final boolean DEFAULT_ACK = false;
     public static final String FIELDS = "sentence";
@@ -70,7 +70,7 @@ public class FileReadSpout extends BaseRichSpout {
     public FileReadSpout(boolean ackEnabled, String file) {
         this.ackEnabled = ackEnabled;
         this.reader =
-                new HDFSFileReader(file);
+                new HDFSFileReader("hdfs://nimbus1:9000" + file);
     }
 
     public FileReadSpout(boolean ackEnabled, HDFSFileReader reader) {

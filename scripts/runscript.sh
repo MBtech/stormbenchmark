@@ -65,7 +65,7 @@ done < hosts
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
 mkdir -p config_files
-i=41
+i=0
 #nfiles=$(ls config_files/ | wc -l)
 echo nfiles
 mkdir -p utils
