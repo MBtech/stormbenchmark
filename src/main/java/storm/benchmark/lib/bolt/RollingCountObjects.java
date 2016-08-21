@@ -108,7 +108,7 @@ public class RollingCountObjects  extends BaseRichBolt {
                 _objectCounts.put(obj, curr);
             }
             curr[bucket]++;
-            _collector.emit(new Values(obj, totalObjects(obj)));
+            _collector.emit(new Values(obj, totalObjects(obj), tuple.getValue(1)));
             _collector.ack(tuple);
         }
     }
@@ -117,7 +117,7 @@ public class RollingCountObjects  extends BaseRichBolt {
     }
 
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields("obj", "count"));
+        declarer.declare(new Fields("obj", "count", "timestamp"));
     }
 
 }

@@ -5,8 +5,8 @@ import sys
 import random
 import os
 
-def selective_write(select, fname):
-    stream = open(os.path.expanduser('~')+"/.storm/rollingcount.yaml", "r")
+def selective_write(select, fname ,basefile):
+    stream = open(os.path.expanduser('~')+"/.storm/" + basefile, "r")
     docs = yaml.load(stream)
 
     for k,v in docs.items():

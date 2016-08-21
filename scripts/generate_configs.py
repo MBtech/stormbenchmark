@@ -5,14 +5,28 @@ import math
 from randomize import selective_write
 import itertools
 from pyDOE import *
+import sys
+from collections import OrderedDict
+# Returns an ordered dictionary based on the order in which the parameters were found in the file
+#http://stackoverflow.com/questions/5121931/in-python-how-can-you-load-yaml-mappings-as-ordereddicts
+def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
+     class OrderedLoader(Loader):
+         pass
+     def construct_mapping(loader, node):
+         loader.flatten_mapping(node)
+         return object_pairs_hook(loader.construct_pairs(node))
+     OrderedLoader.add_constructor(
+         yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+         construct_mapping)
+     return yaml.load(stream, OrderedLoader)
 
-def write(design_space):
+def write(design_space ,basefile):
     folder = "config_files"
     if not os.path.exists(folder):
         os.makedirs(folder)
     for i in range(len(design_space)):
         fname = folder+"/"+"test"+str(i)+".yaml"
-        selective_write(design_space[i],fname)
+        selective_write(design_space[i],fname, basefile)
 
 def factorial_design(conf, sample,start,end,step):
     design_space = list()
@@ -50,23 +64,45 @@ def oat_design(conf, sample, start,end,step):
             design_space.append(dict(temp))
     write(design_space)
 
-def generate_random(result,start,end,step,p,conf):
+def generate_random(result,start,end,step,typ,p,conf,s):
     i = 0
+    denom = 0 
+    steps = 0
     for c in conf:
-	result[c] = start[c] + (((end[c]-start[c])/(p[i]-1)) * random.randint(0,p[i]-2))
+        if s==c:
+            steps = p[i]-1
+	    denom = p[i]-1
+        else:
+            steps = p[i]
+            denom = p[i]-1
+	if c in typ.keys():
+            if typ[c] == "boolean":
+	        result[c] = random.choice([True, False])
+            if typ[c] == "exp":
+                result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
+	else:
+	    result[c] = start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))
         i = i +1
     return result
 
-def step_up(result,start,end,step,p,c):
-    result[c] = result[c] + ((end[c]-start[c])/(p-1))
-    if result[c] <= end[c]:
-	return result
+def step_up(result,start,end,step,typ,p,c):
+    if c in typ.keys():
+        if typ[c] == "boolean":
+            if result[c]==True: result[c]=False;
+            else: result[c]=True;
+        if typ[c] =="exp":
+            result[c] = pow(2,math.log(result[c],2) + ((end[c]-start[c])/(p-1)))
     else:
-        result[c] = end[c]
-        return result
+        result[c] = result[c] + ((end[c]-start[c])/(p-1))
+        if result[c] <= end[c]:
+	    return result
+        else:
+            result[c] = end[c]
+            return result
     
-def ee_design(conf,sample,start,end,step):
-    p = [4,4,4,4,4,3,3]
+def ee_design(conf,sample,start,end,step,typ, basefile):
+    #p = [4,4,4,4,4,4,3,3]
+    p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
     design_space=list()
     result = dict(sample)
     index = 0
@@ -74,23 +110,31 @@ def ee_design(conf,sample,start,end,step):
     for c in conf:
         for i in range(0,r):
             #print c,index
-            result = generate_random(result,start,end,step,p,conf)
+            result = generate_random(result,start,end,step,typ,p,conf,c)
             design_space.append(dict(result))
             print result
-            step_up(result,start,end,step,p[index],c)
+            step_up(result,start,end,step,typ,p[index],c)
             design_space.append(dict(result))
             print result
         index = index + 1
-    write(design_space)    
+    write(design_space, basefile)    
 
 def main():
-    ref = open("conf1.yaml", "r")
+    # python generate_configs.py conf.yaml
+    conf_file = sys.argv[1]
+    basefile = sys.argv[2]
+    ref = open(conf_file, "r")
     sample = yaml.load(ref)
     result = dict(sample)
     start = dict()
     end = dict()
     step = dict()
-    conf = ["component.rolling_count_bolt_num","component.split_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
+    typ = dict()
+    ref = open(conf_file, "r")
+    conf = ordered_load(ref, yaml.SafeLoader).keys()
+    #conf = sample.keys()
+    #print conf
+#    conf = ["component.split_bolt_num","component.rolling_count_bolt_num","component.rank_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
     for k in sample:
         vrange = sample[k]
         if len(vrange.split(","))==2:
@@ -100,9 +144,16 @@ def main():
 	    start[k] = int(vrange.split(",")[0])
 	    end[k] = int(vrange.split(",")[1])
             step[k] = int(vrange.split(",")[2])
+        if len(vrange.split(","))==4:
+	    typ[k] = vrange.split(",")[3]
+            if vrange.split(",")[2] != "null":
+                step[k] = int(vrange.split(",")[2])	    
+                start[k] = int(vrange.split(",")[0])
+                end[k] = int(vrange.split(",")[1])
     print start
     print end 
     print step
+    print typ
     '''print start
     print end
     print step
@@ -118,7 +169,7 @@ def main():
     
     #factorial_design(conf,sample)
     #oat_design(conf,sample,start,end,step)
-    ee_design(conf,sample,start,end,step)
+    ee_design(conf,sample,start,end,step,typ,basefile)
  
 def factorial_design(conf, sample):
     design_space = list()

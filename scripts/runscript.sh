@@ -65,7 +65,7 @@ done < hosts
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
 mkdir -p config_files
-i=0
+i=90
 #nfiles=$(ls config_files/ | wc -l)
 echo nfiles
 mkdir -p utils
@@ -85,19 +85,26 @@ getcounters $i &
 #PID=$(jps | grep "worker" | awk '{print $1}')
 #perf stat -p $PID -a -I 200000 -o perf/test$i.log &
 #PERF_PID=$!
-#end=$((SECONDS+2000))
+sleep 20
+end=$((SECONDS+180))
 flag=true
-#while [ $SECONDS -lt $end ]; do
+count=0
+max=5
+while [ $SECONDS -lt $end ]; do
     # Do what you want.
-#string="$(ls reports/*.csv| tail -1 | xargs -I {} tail -1 {})"
-#if [[ $string == *",0,"* ]] || [[ $string == *"-"* ]]
-#then
-  #break;
-#  flag=true;
-#fi
-#sleep 5
-#done
-sleep 200
+string="$(ls reports/*.csv| tail -1 | xargs -I {} tail -1 {})"
+if [[ $string == *",0,"* ]] || [[ $string == *"-"* ]]
+then
+  let count=count+1
+  if [ "$count" -gt "$max" ] 
+  then
+     flag=false
+     break;
+  fi
+fi
+sleep 5
+done
+#sleep 200
 #kill -9 $PERF_PID
 
 #sleep 210

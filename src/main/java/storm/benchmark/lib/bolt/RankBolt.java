@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 import org.json.simple.JSONValue;
 
@@ -15,6 +16,9 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
+
+import storm.benchmark.metrics.LatencyConsumer;
+import storm.benchmark.metrics.Latencies;
 
 /** 
 
@@ -33,6 +37,8 @@ public class RankBolt implements IBasicBolt {
 	int _count;
 	Long _lastTime = null;
 	
+        transient Latencies _latencies;
+
 	public RankBolt(int n) {
 		// TODO Auto-generated constructor stu
 		_count = n;
@@ -77,6 +83,8 @@ public class RankBolt implements IBasicBolt {
 
 	@Override
 	public void prepare(@SuppressWarnings("rawtypes") Map stormConf, TopologyContext context) {
+		_latencies = new Latencies();
+		context.registerMetric("latencies", _latencies, 5);
 		// TODO Auto-generated method stub
 		
 	}
@@ -87,13 +95,15 @@ public class RankBolt implements IBasicBolt {
 		// TODO Auto-generated method stub
 		Object tag = input.getValue(0);   // 获取obj
 		Integer existingIndex = find(tag);  //查找obj
-		
+		//Tuple t = new Values(input.getValue(0), input.getValue(1));
 		if(null != existingIndex) {
-			_rankings.set(existingIndex, input.getValues());
+			_rankings.set(existingIndex, Arrays.asList(input.getValue(0) , input.getValue(1)));
 		} else {
-			_rankings.add(input.getValues());
+			_rankings.add(Arrays.asList(input.getValue(0), input.getValue(1)));
 		}
-		
+		long time = System.currentTimeMillis();
+                long creation = (Long)input.getValue(2);
+		_latencies.add((int) (time-creation));
 		Collections.sort(_rankings, new Comparator<List>() {
 			@Override
 			public int compare(List o1, List o2) {
