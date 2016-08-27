@@ -148,26 +148,33 @@ def get_neighbor(result,start,end,step,typ,p,conf):
     return xi
 
 # Get results for the specific configurations
-def get_result(start_index, end_index, design_space, basefile):
+def get_results(start, end, design_space, basefile, metric):
     write(design_space, start,end ,basefile)
     for i in range(start, end):
-        bashCommand = "./onescript.sh"
+        bashCommand = "./onescript.sh " + str(i)
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output = process.communicate()[0]
 
     cw = pandas.read_csv("numbers.csv")
-    return cw['lat_90'][start:end]
+    ret_array = list()
+    for i in range(start, end):
+        if i in cw['no.']:
+            ret_array.append(i)
+    if len(ret_array)>0:
+        return list(cw[metric][start:end]),ret_array
+    else:
+        return 0,ret_array
 
 def rrs(conf,sample,start,end,step,typ, basefile, metric):
     # Initializations
     v=0.9
-    p=0.99
+    p=0.9
     q=0.99
     r=0.1
     c=0.5
     st=0.01
-    n=math.log(1-p)/math.log(1-r)
-    l=math.log(1-q)/math.log(1-v)
+    n=int(math.log(1-p)/math.log(1-r))
+    l=int(math.log(1-q)/math.log(1-v))
     f_thresh = list()
     #p = [4,4,4,4,4,4,3,3]
     p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
@@ -180,25 +187,35 @@ def rrs(conf,sample,start,end,step,typ, basefile, metric):
 
 
     # Get results and get the best configuration
-    metric_values = get_results(0,n,design_space)
+    metric_values,numbers = get_results(0,n,design_space, basefile,metric)
     fx0 = min(metric_values)
-    x0 = design_space[metric_values.index(fx0)]
+    print metric_values
+    x0 = design_space[numbers[metric_values.index(fx0)]]
     f_gamma = fx0
     f_thresh.append(fx0)
     i =0
     flag = True
     xopt = dict(x0)
-
+    fx_opt = fx0
     # List for next n samples
     new_x = list(dict())
     new_fx = list()
-    while len(design_space)=<120:
+    while len(design_space)<=90:
+        print "Best configuration" + str(xopt)
+        print "Best result " + str(fx_opt)
         if flag:
             j=0; fl = fx0; xl = dict(x0); phi=r
             while phi<st:
                 x_bar = get_neighbor(xl,start,end,step,typ,p,conf)
                 design_space.append(xbar)
-                fx_bar = get_result(len(design_space)-1, len(design_space), design_space, basefile)
+                fx_bar,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
+                # Get another point from the neighborhood if the previous one failed
+                while len(elements)==0:
+                    del design_space[-1]
+                    x_bar = get_neighbor(xl,start,end,step,typ,p,conf)
+                    design_space.append(xbar)
+                    fx_bar,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
+
                 if fx_bar < fl:
                     xl = dict(x_bar)
                     fl = fx_bar
@@ -206,11 +223,11 @@ def rrs(conf,sample,start,end,step,typ, basefile, metric):
                 else:
                     j = j+1
 
-                if j = l:
+                if j== l:
                     phi = c*phi; j =0
             flag = False
-            design_space.append(xopt)
-            fx_opt = get_result(len(design_space)-1, len(design_space), design_space, basefile)
+            #design_space.append(xopt)
+            #fx_opt = get_results(len(design_space)-1, len(design_space), design_space, basefile)
 
             if fl < fx_opt:
                 x_opt = dict(xl)
@@ -218,27 +235,33 @@ def rrs(conf,sample,start,end,step,typ, basefile, metric):
 
         x0 = generate_random(result,start,end,step,typ,p,conf)
         design_space.append(dict(x0))
-        fx0 = get_result(len(design_space)-1, len(design_space), design_space, basefile)
-
+        fx0, elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
+        # Get another random sample if the previous one failed
+        while len(elements)==0:
+            del design_space[-1]
+            x0 = generate_random(result,start,end,step,typ,p,conf)
+            design_space.append(dict(x0))
+            fx0, elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
         new_x.append(x0)
-        new_fx.append(fx0)
+        new_fx.extend(fx0)
         if fx0 < f_gamma:
             flag = True
 
-        if i=n:
+        if i==n:
             f_thresh.append(min(new_fx))
-            f_gamma = mean(f_thresh)
+            print f_thresh
+            f_gamma = numpy.mean(numpy.array(f_thresh))
             i = 0
-
         i = i+1
 
     # print xi
     # design_space.append(dict(result))
 
 def main():
-    # python generate_configs.py conf.yaml
+    # python rrs.py conf.yaml rollingtopwords.yaml lat_90
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
+    metric = sys.argv[3]
     ref = open(conf_file, "r")
     sample = yaml.load(ref)
     result = dict(sample)
@@ -260,7 +283,7 @@ def main():
                 step[k] = int(vrange.split(",")[2])
                 start[k] = int(vrange.split(",")[0])
                 end[k] = int(vrange.split(",")[1])
-    rrs(conf,sample,start,end,step,typ,basefile,0)
+    rrs(conf,sample,start,end,step,typ,basefile,metric)
 
 if __name__ == '__main__':
     main()

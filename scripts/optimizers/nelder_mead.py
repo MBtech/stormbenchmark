@@ -31,7 +31,7 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
 # Get the number rounded to multiple of a particular number
 def roundMultiple(number, multiple):
     num = number + (multiple-1)
-    return num - (num % multiple)
+    return int(num - (num % multiple))
 
 # Write the configuration to the file
 # Can write multiple entries based on the start end end entries
@@ -61,6 +61,12 @@ def generate_random(result,start,end,step,typ,p,conf):
         i = i +1
     return result
 
+def put_limits(value,start,end):
+    if value<start:
+        return start
+    else:
+        return end
+
 # Create a centroid
 def centroid(x_list,result,start,end,step,typ,conf):
     i = 0
@@ -69,8 +75,11 @@ def centroid(x_list,result,start,end,step,typ,conf):
     center = dict()
     for c in conf:
         if c not in typ.keys():
+ #           print x_list
+            center[c] = 0
             for i in range(0,len(x_list)-1):
                 center[c] += x_list[i][c]
+#            print center[c]
             center[c] = roundMultiple(center[c]/(len(x_list)-1),3)
         else:
             if typ[c] == "boolean":
@@ -85,76 +94,73 @@ def centroid(x_list,result,start,end,step,typ,conf):
                 cat_list = list()
                 for i in range(0,len(x_list)-1):
                     cat_list.append(x_list[i][c])
-                result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
-    for c in conf:
-        steps = p[i]
-        denom = p[i]-1
-	    if c in typ.keys():
-            if typ[c] == "boolean":
-	        result[c] = random.choice([True, False])
-            if typ[c] == "exp":
-                result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
-	    else:
-	        result[c] = start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))
-        i = i +1
+                center[c] = numpy.median(cat_list)
+    return center
 
 # Get results for the specific configurations
-def get_result(start_index, end_index, design_space, basefile):
+def get_results(start, end, design_space, basefile,metric):
     write(design_space, start,end ,basefile)
     for i in range(start, end):
-        bashCommand = "./onescript.sh"
+        bashCommand = "./onescript.sh " + str(i)
         process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
         output = process.communicate()[0]
 
     cw = pandas.read_csv("numbers.csv")
-    return cw['lat_90'][start:end]
+    ret_array = list()
+    for i in range(start, end):
+        if i in cw['no.']:
+            ret_array.append(i)
+    if len(ret_array)>0:
+        return list(cw['lat_90'][start:end]),ret_array
+    else:
+        return sys.maxint,ret_array
 
-def reflection(x0, xn1, alpha, conf, step):
+def reflection(x0, xn1, alpha, conf, typ,start,end,step):
     xr = dict()
     for c in conf:
         if c not in typ.keys():
-            xr[c] = roundMultiple(x0[c] + alpha * (x0[c] - xn1[c]), step)
+            xr[c] = put_limits(roundMultiple(x0[c] + alpha * (x0[c] - xn1[c]), step[c]),start[c],end[c])
         else:
             if typ[c] == "boolean":
                 xr[c] = x0[c] + alpha*(x0[c] - xn1[c])
             if typ[c] == "exp":
-                xr[c] = pow(2, math.log(x0[c]) + alpha*(math.log(x0[c]) - math.log(xn1[c]))
+                xr[c] = put_limits(pow(2, int(math.log(x0[c]) + alpha*(math.log(x0[c]) - math.log(xn1[c])))), pow(2,start[c]),pow(2,end[c]))
     return xr
 
-def expansion(x0, xr, gamma, conf, step):
+def expansion(x0, xr, gamma, conf, typ,start,end,step):
     xe = dict()
     for c in conf:
         if c not in typ.keys():
-            xe[c] = roundMultiple(x0[c] + gamma * (xr[c] - x0[c]), step)
+            xe[c] = put_limits(roundMultiple(x0[c] + gamma * (xr[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
                 xe[c] = x0[c] + gamma*(xr[c] - x0[c])
             if typ[c] == "exp":
-                xe[c] = pow(2, math.log(x0[c]) + gamma*(math.log(xr[c]) - math.log(x0[c]))
+                xe[c] = put_limits(pow(2, int(math.log(x0[c]) + gamma*(math.log(xr[c]) - math.log(x0[c])))),pow(2,start[c]),pow(2,end[c]))
     return xe
 
-def contraction(x0, xn1, phi, conf, step):
+def contraction(x0, xn1, phi, conf, typ,start,end,step):
     xc = dict()
     for c in conf:
         if c not in typ.keys():
-            xc[c] = roundMultiple(x0[c] + phi* (xn1[c] - x0[c]), step)
+            xc[c] = put_limits(roundMultiple(x0[c] + phi* (xn1[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
                 xc[c] = x0[c] + phi*(xn1[c] - x0[c])
             if typ[c] == "exp":
-                xc[c] = pow(2, math.log(x0[c]) + phi*(math.log(xn1[c]) - math.log(x0[c]))
+                xc[c] = put_limits(pow(2, int(math.log(x0[c]) + phi*(math.log(xn1[c]) - math.log(x0[c])))), pow(2,start[c]),pow(2,end[c]))
     return xc
 
-def shrink(x0, xi, sigma, conf, step):
+def shrink(x0, xi, sigma, conf, typ,start,end,step):
     new_xi = dict()
     for c in conf:
         if c not in typ.keys():
-            new_xi[c] = roundMultiple(x0[c] + phi* (xi[c] - x0[c]), step)
+            new_xi[c] = put_limits(roundMultiple(x0[c] + sigma* (xi[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
-                new_xi[c] = x0[c] + phi* (xi[c] - x0[c])
+                new_xi[c] = x0[c] + sigma* (xi[c] - x0[c])
             if typ[c] == "exp":
-                new_xi[c] = pow(2, math.log(x0[c]) + phi*(math.log(xi[c]) - math.log(x0[c]))
+                new_xi[c] = put_limits(pow(2, int(math.log(x0[c]) + sigma*(math.log(xi[c]) - math.log(x0[c])))), pow(2,start[c]),pow(2,end[c]))
     return new_xi
 
 def neldermead(conf,sample,start,end,step,typ, basefile, metric):
@@ -163,39 +169,47 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
     sigma = 0.5
     alpha = 1
     gamma = 2
+#    n = len(conf)
+    n = 4
     #p = [4,4,4,4,4,4,3,3]
     p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
     design_space=list()
     result = dict(sample)
+    metric_values = list()
     # Generate the first n samples
-    for i in range(0,n+1):
+    while len(design_space)<n+1:
         result = generate_random(result,start,end,step,typ,p,conf)
         design_space.append(dict(result))
-
-    # Get results and get the best configuration
-    metric_values = get_results(0,n,design_space)
-    while true:
+        values,elements = get_results(len(design_space)-1, len(design_space),design_space,basefile,metric)
+        if len(elements)==0:
+            del design_space[-1]
+        else:
+            metric_values.extend(values)
+#    print metric_values
+    while len(design_space)<40:
         fx = sorted(metric_values)
         x_sorted = [x for (y,x) in sorted(zip(metric_values,design_space), key=lambda pair: pair[0])]
+        print fx[0]
+        print x_sorted[0]
         # fx1 = min(metric_values)
         # x1 = design_space[metric_values.index(fx1)]
 
         x0 = centroid(x_sorted[:len(x_sorted)-1],result,start,end,step,typ,conf)
 
         # Reflection Step
-        xr = reflection(x0, x_sorted[len(x_sorted)-1], alpha, conf, step)
+        xr = reflection(x0, x_sorted[len(x_sorted)-1], alpha, conf,typ, start,end,step)
         design_space.append(xr)
-        fx_r = get_result(len(design_space)-1, len(design_space), design_space, basefile)
+        fx_r,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile,metric)
         if fx_r < fx[len(fx)-2] and fx_r >= fx[0]:
             x_sorted[len(x_sorted)-1] = dict(xr)
             fx[len(fx)-1] = fx_r
             continue
 
         # Expansion step
-        else if fx_r < fx[0]:
-            xe = expansion(x0, xr, gamma, conf, step)
+        elif fx_r < fx[0]:
+            xe = expansion(x0, xr, gamma, conf, typ,start,end,step)
             design_space.append(xe)
-            fx_e = get_result(len(design_space)-1, len(design_space), design_space, basefile)
+            fx_e,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
             if fx_e < fx_r:
                 x_sorted[len(x_sorted)-1] = dict(xe)
                 fx[len(fx)-1] = fx_e
@@ -206,10 +220,10 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
                 continue
 
         # Contraction Step
-        else fx_r > fx[len(fx)-2]:
-            xc = contraction(x0, xn1, phi, conf, step)
-            design_space.append(xe)
-            fx_c = get_result(len(design_space)-1, len(design_space), design_space, basefile)
+        else:
+            xc = contraction(x0, x_sorted[len(x_sorted)-1], phi, conf, typ, start,end,step)
+            design_space.append(xc)
+            fx_c,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
             if fx_c < fx[len(fx)-1]:
                 x_sorted[len(x_sorted)-1] = dict(xc)
                 fx[len(fx)-1] = fx_c
@@ -217,13 +231,14 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
             # Shrink Step
             else:
                 for i in range(1,n+1):
-                    x_sorted[i] = shrink(x_sorted[0], x_sorted[i], sigma, conf, step)
+                    x_sorted[i] = shrink(x_sorted[0], x_sorted[i], sigma, conf,typ, start,end,step)
                     continue
 
 def main():
-    # python generate_configs.py conf.yaml
+    # python generate_configs.py conf.yaml lat_90
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
+    metric = sys.argv[3]
     ref = open(conf_file, "r")
     sample = yaml.load(ref)
     result = dict(sample)
@@ -245,7 +260,7 @@ def main():
                 step[k] = int(vrange.split(",")[2])
                 start[k] = int(vrange.split(",")[0])
                 end[k] = int(vrange.split(",")[1])
-    neldermead(conf,sample,start,end,step,typ,basefile,0)
+    neldermead(conf,sample,start,end,step,typ,basefile,metric)
 
 if __name__ == '__main__':
     main()
