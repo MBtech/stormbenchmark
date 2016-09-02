@@ -4,8 +4,8 @@ function utilizations {
 while IFS='' read -r line || [[ -n "$line" ]]; do
     #echo "Text read from file: $line"
 j=1
-ssh -o ServerAliveInterval=60 $line 'mpstat -P ALL 50 4' > utils/server$j_util$1.log & 
-ssh -o ServerAliveInterval=60 $line 'ifstat 10 22' > net_utils/server$j_net$1.log &
+ssh -o ServerAliveInterval=60 $line 'mpstat -P ALL 50 4' > utils/server$j"_util$1.log" & 
+ssh -o ServerAliveInterval=60 $line 'ifstat 10 22' > net_utils/server$j"_net$1.log" &
 let j=j+1
 done < hosts
 }
@@ -51,6 +51,13 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
 scp -r $line:~/perf/test.log perf/test$1_$line.log
 done < hosts
 }
+
+function queuestats {
+while IFS='' read -r line || [[ -n "$line" ]]; do
+# This should be ssh command
+ssh -o ServerAliveInterval=60 ubuntu@sys-n03.info.ucl.ac.be "cd $STORM_HOME/logs/workers-artifacts; find $(ls -tr | tail -n1) -name 'worker.log.metrics' | xargs -I {} cat {} | grep -o 'population=[0-9]*'"
+done < hosts
+}
 #python wspAlgorithm.py single 21
 #STORM_HOME=~/bilal/storm
 #STORM_HOME=/usr/local/ansible-test/storm/apache-storm-0.9.3
@@ -58,42 +65,51 @@ done < hosts
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
 mkdir -p config_files
-i=13
+i=$1
 #nfiles=$(ls config_files/ | wc -l)
 echo nfiles
 mkdir -p utils
 mkdir -p net_utils
 mkdir -p perf
 cleanup
+max=5
 while true; do
 #python randomize.py
-#cp config_files/test$i.yaml ~/.storm/rollingcount.yaml
+cp config_files/test$i.yaml ~/.storm/rollingtopwords.yaml
 #cat ~/.storm/sol.yaml
-../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/rollingcount.yaml  storm.benchmark.tools.Runner storm.benchmark.benchmarks.RollingCount &
+../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/rollingtopwords.yaml  storm.benchmark.tools.Runner storm.benchmark.benchmarks.RollingTopWords &
 utilizations $i
+kill -9 $(jps | grep "TServer" | awk '{print $1}')
+nohup java -cp ~/bilal/TDigestService/target/TDigestService-1.0-SNAPSHOT-jar-with-dependencies.jar com.tdigestserver.TServer 11111 &
 sleep 10
 getcounters $i &
 #PID=$(jps | grep "worker" | awk '{print $1}')
 #perf stat -p $PID -a -I 200000 -o perf/test$i.log &
 #PERF_PID=$!
-#end=$((SECONDS+2000))
+sleep 20
+end=$((SECONDS+180))
 flag=true
-#while [ $SECONDS -lt $end ]; do
+count=0
+while [ $SECONDS -lt $end ]; do
     # Do what you want.
-#string="$(ls reports/*.csv| tail -1 | xargs -I {} tail -1 {})"
-#if [[ $string == *",0,"* ]] || [[ $string == *"-"* ]]
-#then
-  #break;
-#  flag=true;
-#fi
-#sleep 5
-#done
-sleep 300
+string="$(ls reports/*.csv| tail -1 | xargs -I {} tail -1 {})"
+if [[ $string == *",0,"* ]] || [[ $string == *"-"* ]]
+then
+  let count=count+1
+  if [ "$count" -gt "$max" ] 
+  then
+     flag=false
+     break;
+  fi
+fi
+sleep 5
+done
+#sleep 200
 #kill -9 $PERF_PID
 
 #sleep 210
 python storm_metrics.py $i
-$STORM_HOME/bin/storm kill RollingCount -w 1 
+$STORM_HOME/bin/storm kill RollingTopWords -w 1 
 sleep 20 
 
 if [[ $flag ]]; then
@@ -107,13 +123,27 @@ redis_getmetrics $i
 #rm -rf logs
 echo "Current iteration number is $i"
 #Arguments: Directory, Index, Threads, number of nodes, number of spout, percentile latency, skip intervals, tolerance
-python process.py json_files/ $i 90 3 18 99 10 1.1
+python process.py json_files/ $i 90 3 3 99 10 1.1
+kill -9 $(jps | grep "TServer" | awk '{print $1}')
+break
+#let i=i+1
 #nfiles=$(ls config_files/ | wc -l)
-let i=i+1
+#for j in `seq $i $nfiles`; do    count=$(cat numbers.csv | grep "^$j," | wc -l); if [ $count -eq 0 ]; then let i=j; break; fi; done
+#echo "Next iteration number is $i"
+#let i=i+1
 #if [ "$i" -eq "$nfiles" ]
 #	then
-#	break
+#redis_cleanup	
+#break
 #fi
+else 
+  if [ "$max" -eq "0" ]
+  then
+    break
+  else
+    let max=max-1
+    continue
+  fi
 fi
 #cleanup
 redis_cleanup
