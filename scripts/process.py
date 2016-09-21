@@ -208,15 +208,15 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
 
     fieldnames = list()
     data = list()
-    fieldnames.append("test no.")
+    fieldnames.append("no.")
     data.append(index)
-    fieldnames.append("threads spout")
+    fieldnames.append("spout")
     data.append(spout_threads)
     for c in components:
-        fieldnames.append("threads " + c)
+        fieldnames.append(c)
         data.append(bolt_threads[c])
     for c in components:
-        fieldnames.append("capacity " + c)
+        fieldnames.append("cap_" + c)
         data.append(format(cap[c],'.2f'))
     fieldnames.append("throughput")
     data.append(throughput)
@@ -228,9 +228,9 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
     fieldnames.append("99th perct latency")
     data.append(tail_99)'''
     for i in range(50,100,10):
-        fieldnames.append(str(i)+"th latency")
+        fieldnames.append("lat_" + str(i))
         data.append(lat[(i-50)/10])
-    fieldnames.append("99th latency")
+    fieldnames.append("lat_99")
     data.append(lat[len(lat)-1])   
     flag = False
     flag = exists('numbers.csv')

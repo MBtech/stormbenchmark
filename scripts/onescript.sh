@@ -73,21 +73,22 @@ mkdir -p net_utils
 mkdir -p perf
 cleanup
 max=5
+retries=3
 while true; do
 #python randomize.py
-cp config_files/test$i.yaml ~/.storm/rollingtopwords.yaml
+cp config_files/test$i.yaml ~/.storm/rollingcount.yaml
 #cat ~/.storm/sol.yaml
-../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/rollingtopwords.yaml  storm.benchmark.tools.Runner storm.benchmark.benchmarks.RollingTopWords &
+../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/rollingcount.yaml  storm.benchmark.tools.Runner storm.benchmark.benchmarks.RollingCount &
 utilizations $i
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
 nohup java -cp ~/bilal/TDigestService/target/TDigestService-1.0-SNAPSHOT-jar-with-dependencies.jar com.tdigestserver.TServer 11111 &
 sleep 10
-getcounters $i &
+#getcounters $i &
 #PID=$(jps | grep "worker" | awk '{print $1}')
 #perf stat -p $PID -a -I 200000 -o perf/test$i.log &
 #PERF_PID=$!
 sleep 20
-end=$((SECONDS+180))
+end=$((SECONDS+200))
 flag=true
 count=0
 while [ $SECONDS -lt $end ]; do
@@ -102,14 +103,14 @@ then
      break;
   fi
 fi
-sleep 5
+sleep 10
 done
 #sleep 200
 #kill -9 $PERF_PID
 
 #sleep 210
 python storm_metrics.py $i
-$STORM_HOME/bin/storm kill RollingTopWords -w 1 
+$STORM_HOME/bin/storm kill RollingCount -w 1 
 sleep 20 
 
 if [[ $flag ]]; then
@@ -137,11 +138,11 @@ break
 #break
 #fi
 else 
-  if [ "$max" -eq "0" ]
+  if [ "$retries" -eq "0" ]
   then
     break
   else
-    let max=max-1
+    let retries=retries-1
     continue
   fi
 fi

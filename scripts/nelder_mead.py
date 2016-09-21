@@ -2,7 +2,6 @@ import random
 import os
 import math
 import numpy
-
 import yaml
 import random
 import os
@@ -14,7 +13,7 @@ from randomize import selective_write
 import itertools
 import subprocess
 import pandas
-
+from utils import generate_random
 from utils import get_results
 # Returns an ordered dictionary based on the order in which the parameters were found in the file
 #http://stackoverflow.com/questions/5121931/in-python-how-can-you-load-yaml-mappings-as-ordereddicts
@@ -44,24 +43,6 @@ def write(design_space, start,end ,basefile):
         fname = folder+"/"+"test"+str(i)+".yaml"
         selective_write(design_space[i],fname, basefile)
 
-# Generate a random point in the parameter search space
-def generate_random(result,start,end,step,typ,p,conf):
-    i = 0
-    denom = 0
-    steps = 0
-    for c in conf:
-        steps = p[i]
-        denom = p[i]-1
-        if c in typ.keys():
-            if typ[c] == "boolean":
-                result[c] = random.choice([True, False])
-            if typ[c] == "exp":
-                result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
-        else:
-            result[c] = start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))
-        i = i +1
-    return result
-
 def put_limits(value,start,end):
     if value<start:
         return start
@@ -69,7 +50,7 @@ def put_limits(value,start,end):
         return end
     
 # Create a centroid
-def centroid(x_list,result,start,end,step,typ,conf):
+def centroid(x_list,result,start,end,step,typ,conf,relations):
     i = 0
     denom = 0
     steps = 0
@@ -96,57 +77,82 @@ def centroid(x_list,result,start,end,step,typ,conf):
                 for i in range(0,len(x_list)-1):
                     cat_list.append(x_list[i][c])
                 center[c] = numpy.median(cat_list)
+        if c in relations:
+                for e in relations[c]:
+                    center[e] = pow(2,int(math.ceil(math.log(center[c],2))))
+                    if center[c]*1.1>center[e]:
+                        center[e] = pow(2,int(math.ceil(math.log(center[c],2)))+1)
     return center
 
-def reflection(x0, xn1, alpha, conf, typ,start,end,step):
+def reflection(x0, xn1, alpha, conf, typ,start,end,step,relations):
     xr = dict()
     for c in conf:
         if c not in typ.keys():
             xr[c] = put_limits(roundMultiple(x0[c] + alpha * (x0[c] - xn1[c]), step[c]),start[c],end[c])
         else:
             if typ[c] == "boolean":
-                xr[c] = x0[c] + alpha*(x0[c] - xn1[c])
+                xr[c] = bool(round(x0[c] + alpha*(x0[c] - xn1[c])))
             if typ[c] == "exp":
                 xr[c] = put_limits(pow(2, int(math.log(x0[c]) + alpha*(math.log(x0[c]) - math.log(xn1[c])))), pow(2,start[c]),pow(2,end[c]))
+        if c in relations:
+                for e in relations[c]:
+                    xr[e] = pow(2,int(math.ceil(math.log(xr[c],2))))
+                    if xr[c]*1.1>xr[e]:
+                        xr[e] = pow(2,int(math.ceil(math.log(xr[c],2)))+1)
     return xr
 
-def expansion(x0, xr, gamma, conf, typ,start,end,step):
+def expansion(x0, xr, gamma, conf, typ,start,end,step,relations):
     xe = dict()
     for c in conf:
         if c not in typ.keys():
             xe[c] = put_limits(roundMultiple(x0[c] + gamma * (xr[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
-                xe[c] = x0[c] + gamma*(xr[c] - x0[c])
+                xe[c] = bool(round(x0[c] + gamma*(xr[c] - x0[c])))
             if typ[c] == "exp":
                 xe[c] = put_limits(pow(2, int(math.log(x0[c]) + gamma*(math.log(xr[c]) - math.log(x0[c])))),pow(2,start[c]),pow(2,end[c]))
+        if c in relations:
+                for e in relations[c]:
+                    xe[e] = pow(2,int(math.ceil(math.log(xe[c],2))))
+                    if xe[c]*1.1>xe[e]:
+                        xe[e] = pow(2,int(math.ceil(math.log(xe[c],2)))+1)
     return xe
 
-def contraction(x0, xn1, phi, conf, typ,start,end,step):
+def contraction(x0, xn1, phi, conf, typ,start,end,step,relations):
     xc = dict()
     for c in conf:
         if c not in typ.keys():
             xc[c] = put_limits(roundMultiple(x0[c] + phi* (xn1[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
-                xc[c] = x0[c] + phi*(xn1[c] - x0[c])
+                xc[c] = bool(round(x0[c] + phi*(xn1[c] - x0[c])))
             if typ[c] == "exp":
                 xc[c] = put_limits(pow(2, int(math.log(x0[c]) + phi*(math.log(xn1[c]) - math.log(x0[c])))), pow(2,start[c]),pow(2,end[c]))
+        if c in relations:
+                for e in relations[c]:
+                    xc[e] = pow(2,int(math.ceil(math.log(xc[c],2))))
+                    if xc[c]*1.1>xc[e]:
+                        xc[e] = pow(2,int(math.ceil(math.log(xc[c],2)))+1)
     return xc
 
-def shrink(x0, xi, sigma, conf, typ,start,end,step):
+def shrink(x0, xi, sigma, conf, typ,start,end,step,relations):
     new_xi = dict()
     for c in conf:
         if c not in typ.keys():
             new_xi[c] = put_limits(roundMultiple(x0[c] + sigma* (xi[c] - x0[c]), step[c]), start[c],end[c])
         else:
             if typ[c] == "boolean":
-                new_xi[c] = x0[c] + sigma* (xi[c] - x0[c])
+                new_xi[c] = bool(round(x0[c] + sigma* (xi[c] - x0[c])))
             if typ[c] == "exp":
                 new_xi[c] = put_limits(pow(2, int(math.log(x0[c]) + sigma*(math.log(xi[c]) - math.log(x0[c])))), pow(2,start[c]),pow(2,end[c]))
+        if c in relations:
+                for e in relations[c]:
+                    new_xi[e] = pow(2,int(math.ceil(math.log(new_xi[c],2))))
+                    if new_xi[c]*1.1>new_xi[e]:
+                        new_xi[e] = pow(2,int(math.ceil(math.log(new_xi[c],2)))+1)
     return new_xi
 
-def neldermead(conf,sample,start,end,step,typ, basefile, metric):
+def neldermead(conf,sample,start,end,step,typ,relations, basefile, metric):
     # Initializations
     phi = 0.5
     sigma = 0.5
@@ -161,8 +167,9 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
     result = dict(sample)
     metric_values = list()
     # Generate the first n samples
+    print "Generating first " + str(n+1) + " points"
     while len(design_space)<n+1:
-        result = generate_random(result,start,end,step,typ,p,conf)
+        result = generate_random(result,start,end,step,typ,relations,p,conf)
         design_space.append(dict(result))
         values,elements = get_results(len(design_space)-1, len(design_space),design_space,basefile,metric)
         if values[0]==sys.maxint:
@@ -170,18 +177,22 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
         else:
             metric_values.extend(values)
 #    print metric_values
+    vals = list(metric_values)
+    configs = list(design_space)
+    print "Sorting"
+    fx = sorted(vals)
+    x_sorted = [x for (y,x) in sorted(zip(vals,configs), key=lambda pair: pair[0])]
+
     while len(design_space)<=total_runs:
-        fx = sorted(metric_values)
-        x_sorted = [x for (y,x) in sorted(zip(metric_values,design_space), key=lambda pair: pair[0])]
-        print fx[0]
-        print x_sorted[0]
         # fx1 = min(metric_values)
         # x1 = design_space[metric_values.index(fx1)]
-        
-        x0 = centroid(x_sorted[:len(x_sorted)-1],result,start,end,step,typ,conf)
-
+        print fx
+        print x_sorted[0]        
+        x0 = centroid(x_sorted[:len(x_sorted)-1],result,start,end,step,typ,conf,relations)
+        print x0
         # Reflection Step
-        xr = reflection(x0, x_sorted[len(x_sorted)-1], alpha, conf,typ, start,end,step)
+        print "Reflection"
+        xr = reflection(x0, x_sorted[len(x_sorted)-1], alpha, conf,typ, start,end,step,relations)
         design_space.append(xr)
         fx_r,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile,metric)
         if fx_r < fx[len(fx)-2] and fx_r >= fx[0]:
@@ -191,7 +202,8 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
 
         # Expansion step
         elif fx_r < fx[0]:
-            xe = expansion(x0, xr, gamma, conf, typ,start,end,step)
+            print "Expansion"
+            xe = expansion(x0, xr, gamma, conf, typ,start,end,step,relations)
             design_space.append(xe)
             fx_e,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
             if fx_e < fx_r:
@@ -202,10 +214,10 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
                 x_sorted[len(x_sorted)-1] = dict(xr)
                 fx[len(fx)-1] = fx_r
                 continue
-
         # Contraction Step
         else:
-            xc = contraction(x0, x_sorted[len(x_sorted)-1], phi, conf, typ, start,end,step)
+            print "Contraction"
+            xc = contraction(x0, x_sorted[len(x_sorted)-1], phi, conf, typ, start,end,step,relations)
             design_space.append(xc)
             fx_c,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
             if fx_c < fx[len(fx)-1]:
@@ -214,12 +226,17 @@ def neldermead(conf,sample,start,end,step,typ, basefile, metric):
                 continue
             # Shrink Step
             else:
+                print "Shrinking time"
                 for i in range(1,n+1):
-                    x_sorted[i] = shrink(x_sorted[0], x_sorted[i], sigma, conf,typ, start,end,step)
-                    continue
+                    x_sorted[i] = shrink(x_sorted[0], x_sorted[i], sigma, conf,typ, start,end,step,relations)
+                    design_space.append(x_sorted[i])
+                vals,elements = get_results(len(design_space)-n, len(design_space),design_space,basefile,metric)
+                fx = sorted(vals)
+                x_sorted = [x for (y,x) in sorted(zip(vals,x_sorted), key=lambda pair: pair[0])]
+                continue
 
 def main():
-    # python generate_configs.py conf.yaml lat_90
+    # python nelder_mead.py conf_rollingcount_hc.yaml rollingcount.yaml lat_90 relations.yaml
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
     metric = sys.argv[3]
@@ -244,7 +261,16 @@ def main():
                 step[k] = int(vrange.split(",")[2])
                 start[k] = int(vrange.split(",")[0])
                 end[k] = int(vrange.split(",")[1])
-    neldermead(conf,sample,start,end,step,typ,basefile,metric)
+
+    relation_file = sys.argv[4]
+    rel = open(relation_file, "r")
+    rel_dict = dict(yaml.load(rel))
+    relations = dict()
+    for r in rel_dict:
+        split = rel_dict[r].split(",")
+        relations[r] = list(split[:len(split)-1])
+
+    neldermead(conf,sample,start,end,step,typ,relations,basefile,metric)
 
 if __name__ == '__main__':
     main()

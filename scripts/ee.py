@@ -36,14 +36,14 @@ metric = sys.argv[1]
 data_file = sys.argv[2]
 cw = pd.read_csv(data_file)
 design_space = list()
-ref = open("conf1.yaml", "r")
+ref = open("conf2.yaml", "r")
 sample = yaml.load(ref)
 result = dict(sample)
 start = dict()
 end = dict()
 step = dict()
 typ = dict()
-ref = open("conf1.yaml", "r")
+ref = open("conf2.yaml", "r")
 conf = ordered_load(ref, yaml.SafeLoader).keys()
 #conf = ["component.split_bolt_num","component.rolling_count_bolt_num","component.rank_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
 #conf = ["component.rolling_count_bolt_num","component.split_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
@@ -53,7 +53,7 @@ alt2 = ["rolling_count","split"]
 alt2.extend(alt)
 metrics = ['lat_90','lat_80','lat_70','lat_60','lat_50','throughput']
 #p = [4,4,4,4,4,3,3]
-p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
 for k in sample:
     vrange = sample[k]
     if len(vrange.split(","))==2:
@@ -87,16 +87,19 @@ for i in range(0,file_count-1,2):
         run = 0
     ref = open("config_files/test"+str(i)+".yaml","r")
     confs = yaml.load(ref)
+    if max(cw[metric][i+1],cw[metric][i])>=2*min(cw[metric][i+1],cw[metric][i]):
+        print "Suspricious run : " + str(i)
     if conf[index] in typ.keys():
         if typ[conf[index]]=="boolean":
             change = cw[metric][i+1] - cw[metric][i]/1.0
         else:
-            change = cw[metric][i+1] - cw[metric][i]/((end[conf[index]]-start[conf[index]])/(p[index]-1))
+            change = cw[metric][i+1] - cw[metric][i]/1.0
+            #change = cw[metric][i+1] - cw[metric][i]/((end[conf[index]]-start[conf[index]])/(p[index]-1))
     else:
-        change = cw[metric][i+1] - cw[metric][i]/((end[conf[index]]-start[conf[index]])/(p[index]-1))
+        change = (cw[metric][i+1] - cw[metric][i])/1.0
     d[index][run] = change
     run = run +1
-
+#print d 
 index = 0
 for i in d:
     cname = conf[index]
@@ -109,9 +112,11 @@ for i in d:
     mu_star[cname] = mu_star[cname]/r
     index = index +1 
 #print sorted(mu.items(), key=operator.itemgetter(1), reverse=True)
-print sorted(mu_star.items(), key=operator.itemgetter(1), reverse=True)
 
+m = sorted(mu_star.items(), key=operator.itemgetter(1), reverse=True)
+print [x[0] for x in m]
 index = 0
+print m
 for i in d:
     cname = conf[index]
     sigma[cname] = 0.0

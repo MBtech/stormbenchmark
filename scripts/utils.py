@@ -2,6 +2,13 @@ import subprocess
 from randomize import selective_write
 import pandas
 import sys
+import random
+import math
+import os
+
+def roundMultiple(number, multiple):
+    num = number + (multiple-1)
+    return int(num - (num % multiple))
 
 # Write the configuration to the file
 # Can write multiple entries based on the start end end entries
@@ -35,3 +42,27 @@ def get_results(start, end, design_space, basefile, metric):
     print metric_values
     print ret_array
     return metric_values,ret_array
+
+# Generate a random point in the parameter search space
+def generate_random(result,start,end,step,typ,relations,p,conf):
+    i = 0
+    for c in conf:
+        if c in typ.keys():
+            if typ[c] == "boolean":
+                result[c] = random.choice([True, False])
+            if typ[c] == "exp":
+                steps = (end[c] - start[c])/step[c]
+                result[c] = pow(2,(start[c] + (step[c]*random.randint(0,steps))))
+        else:
+            if "component.spout" in c or "topology.acker" in c:
+                result[c] = result["topology.workers"]
+            else:
+                steps = (end[c] - start[c])/step[c]
+                result[c] = roundMultiple(start[c] + (step[c]*random.randint(0,steps)),step[c])
+        if c in relations:
+                for e in relations[c]:
+                    result[e] = pow(2,int(math.ceil(math.log(result[c],2))))
+                    if result[c]*1.1>result[e]:
+                        result[e] = pow(2,int(math.ceil(math.log(result[c],2)))+1)
+        i = i +1
+    return result

@@ -65,7 +65,7 @@ done < hosts
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
 mkdir -p config_files
-i=0
+i=70
 #nfiles=$(ls config_files/ | wc -l)
 echo nfiles
 mkdir -p utils
@@ -102,7 +102,7 @@ then
      break;
   fi
 fi
-sleep 5
+sleep 10
 done
 #sleep 200
 #kill -9 $PERF_PID
@@ -125,8 +125,11 @@ echo "Current iteration number is $i"
 #Arguments: Directory, Index, Threads, number of nodes, number of spout, percentile latency, skip intervals, tolerance
 python process.py json_files/ $i 90 3 3 99 10 1.1
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
-nfiles=$(ls config_files/ | wc -l)
 let i=i+1
+nfiles=$(ls config_files/ | wc -l)
+for j in `seq $i $nfiles`; do    count=$(cat numbers.csv | grep "^$j," | wc -l); if [ $count -eq 0 ]; then let i=j; break; fi; done
+echo "Next iteration number is $i"
+#let i=i+1
 if [ "$i" -eq "$nfiles" ]
 	then
 redis_cleanup	

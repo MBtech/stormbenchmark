@@ -1,0 +1,9 @@
+#benchmark.spout.interval: 10000
+#benchmark.spout.tuple_limit: 450000
+component.rolling_count_bolt_num: 3,30 
+component.split_bolt_num: 3,30
+component.spout_num: 3,12
+topology.acker.executors: 3,12
+topology.max.spout.pending: 1000,10000
+topology.worker.receiver.thread.count: 1,2
+topology.workers: 6,12

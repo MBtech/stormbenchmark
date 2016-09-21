@@ -1,0 +1,13 @@
+component.rolling_count_bolt_num: 3,30,3,int,concurrency
+component.rank_bolt_num: 3,30,3,int,concurrency
+component.split_bolt_num: 3,30,3,int,concurrency
+component.spout_num: 3,12,3,int,concurrency
+topology.acker.executors: 3,12,3,int,concurrenccy
+topology.max.spout.pending: 1000,10000,2000,int,load
+topology.worker.receiver.thread.count: 1,3,1,int,concurrency
+topology.workers: 6,12,3,int,concurrency
+topology.backpressure.enable: false,true,null,boolean,flag
+topology.worker.shared.thread.pool.size: 4,8,2,int,concurrency
+topology.bolts.outgoing.overflow.buffer.enable: false,true,null,boolean,flag
+topology.disruptor.batch.size: 100,400,100,int,load
+topology.disruptor.batch.timeout.millis: 1,3,1,int,timeout

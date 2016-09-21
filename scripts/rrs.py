@@ -9,7 +9,7 @@ from randomize import selective_write
 import itertools
 import subprocess
 import pandas
-
+from utils import generate_random
 # Returns an ordered dictionary based on the order in which the parameters were found in the file
 #http://stackoverflow.com/questions/5121931/in-python-how-can-you-load-yaml-mappings-as-ordereddicts
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -26,7 +26,7 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
 # Get the number rounded to multiple of a particular number
 def roundMultiple(number, multiple):
     num = number + (multiple-1)
-    return num - (num % multiple)
+    return int(num - (num % multiple))
 
 # Write the configuration to the file
 # Can write multiple entries based on the start end end entries
@@ -122,33 +122,15 @@ def in_neighborhood(x0, xi, u, l, r, n1, step, typ, conf):
                 cont = False
     return cont
 
-# Generate a random point in the parameter search space
-def generate_random(result,start,end,step,typ,p,conf):
-    i = 0
-    denom = 0
-    steps = 0
-    for c in conf:
-        steps = p[i]
-        denom = p[i]-1
-        if c in typ.keys():
-            if typ[c] == "boolean":
-                result[c] = random.choice([True, False])
-            if typ[c] == "exp":
-                result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
-        else:
-            result[c] = start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))
-        i = i +1
-    return result
-
 # Get random point for the neighborhood of a point
-def get_neighbor(result,start,end,step,typ,p,conf):
-    xi = generate_random(result,start,end,step,typ,p,conf)
-    while not in_neighborhood(result, xi, end, start, r, len(conf), step, typ, conf):
-        xi = generate_random(result,start,end,step,typ,p,conf)
+def get_neighbor(result,start,end,step,typ,relations,phi,p,conf):
+    xi = generate_random(result,start,end,step,typ,relations,p,conf)
+    while not in_neighborhood(result, xi, end, start, phi, len(conf), step, typ, conf):
+        xi = generate_random(result,start,end,step,typ,relations,p,conf)
     return xi
 
 # Get results for the specific configurations
-def get_results(start, end, design_space, basefile):
+def get_results(start, end, design_space, basefile, metric):
     write(design_space, start,end ,basefile)
     for i in range(start, end):
         bashCommand = "./onescript.sh " + str(i)
@@ -156,38 +138,44 @@ def get_results(start, end, design_space, basefile):
         output = process.communicate()[0]
 
     cw = pandas.read_csv("numbers.csv")
+    metric_values = list()
     ret_array = list()
     for i in range(start, end):
-        if i in cw['no.']:
+        if i in list(cw['no.']):
             ret_array.append(i)
-    if len(ret_array)>0:
-        return list(cw['lat_90'][start:end]),ret_array
-    else:
-        return 0,ret_array
+            metric_values.append(cw[metric][list(cw['no.']).index(i)])
+        else:
+           ret_array.append(i)
+           metric_values.append(sys.maxint)
 
-def rrs(conf,sample,start,end,step,typ, basefile, metric):
+    print metric_values
+    print ret_array
+    return metric_values,ret_array
+
+def rrs(conf,sample,start,end,step,typ, relations,basefile, metric):
     # Initializations
-    v=0.9
-    p=0.9
-    q=0.99
-    r=0.1
+    v=0.5
+    p=0.95
+    q=0.9
+    r=0.2
     c=0.5
-    st=0.01
+    st=0.1
+    #n should be around 23 and l should be around 6-7
     n=int(math.log(1-p)/math.log(1-r))
     l=int(math.log(1-q)/math.log(1-v))
+    print n,l
     f_thresh = list()
     #p = [4,4,4,4,4,4,3,3]
-    p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+    p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
     design_space=list()
     result = dict(sample)
     # Generate the first n samples
     for i in range(0,n):
-        result = generate_random(result,start,end,step,typ,p,conf)
+        result = generate_random(result,start,end,step,typ,relations,p,conf)
         design_space.append(dict(result))
 
-
     # Get results and get the best configuration
-    metric_values,numbers = get_results(0,n,design_space, basefile)
+    metric_values,numbers = get_results(0,n,design_space, basefile,metric)
     fx0 = min(metric_values)
     print metric_values
     x0 = design_space[numbers[metric_values.index(fx0)]]
@@ -200,28 +188,29 @@ def rrs(conf,sample,start,end,step,typ, basefile, metric):
     # List for next n samples
     new_x = list(dict())
     new_fx = list()
-    while len(design_space)<=90:
+    while len(design_space)<=50:
         print "Best configuration" + str(xopt)
         print "Best result " + str(fx_opt)
         if flag:
-            j=0; fl = fx0; xl = dict(x0); phi=r
-            while phi<st:
-                x_bar = get_neighbor(xl,start,end,step,typ,p,conf)
-                design_space.append(xbar)
-                fx_bar,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile)
-                while len(elements)==0:
-                    del design_space[-1]
-                    x_bar = get_neighbor(xl,start,end,step,typ,p,conf)
-                    design_space.append(xbar)
-                    fx_bar,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile)
+            print "Exploitation Phase"
+            j=0; fl = fx_opt; xl = dict(xopt); phi=r
+            while phi>=st:
+                x_bar = get_neighbor(xl,start,end,step,typ,relations,phi,p,conf)
+                while x_bar in design_space:
+                    x_bar = get_neighbor(xl,start,end,step,typ,relations,phi,p,conf)
+                design_space.append(dict(x_bar))
+                values,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile, metric)
+                fx_bar = min(values)
                 if fx_bar < fl:
+                    print "Re-aligning"
                     xl = dict(x_bar)
                     fl = fx_bar
                     j = 0
                 else:
                     j = j+1
-
+                print j
                 if j== l:
+                    print "Shrinking"
                     phi = c*phi; j =0
             flag = False
             #design_space.append(xopt)
@@ -230,22 +219,23 @@ def rrs(conf,sample,start,end,step,typ, basefile, metric):
             if fl < fx_opt:
                 x_opt = dict(xl)
                 fx_opt = fl # Is this necessary?
-
-        x0 = generate_random(result,start,end,step,typ,p,conf)
+        print "Exploration Phase"
+        x0 = generate_random(result,start,end,step,typ,relations,p,conf)
+        while x0 in design_space:
+            x0 = generate_random(result,start,end,step,typ,relations,p,conf) 
         design_space.append(dict(x0))
-        fx0, elements = get_results(len(design_space)-1, len(design_space), design_space, basefile)
-        while len(elements)==0:
-            del design_space[-1]
-            x0 = generate_random(result,start,end,step,typ,p,conf)
-            design_space.append(dict(x0))
-            fx0, elements = get_results(len(design_space)-1, len(design_space), design_space, basefile)
-        new_x.append(x0)
-        new_fx.extend(fx0)
+        values, elements = get_results(len(design_space)-1, len(design_space), design_space, basefile,metric)
+        fx0 = min(values)
         if fx0 < f_gamma:
+            print "New exploitation zone found"
             flag = True
 
+        if fx0 < fx_opt:
+            fx_opt = fx0 
+            x_opt = dict(x0)
+
         if i==n:
-            f_thresh.append(min(new_fx))
+            f_thresh.append(fx_opt)
             print f_thresh
             f_gamma = numpy.mean(numpy.array(f_thresh))
             i = 0
@@ -258,6 +248,7 @@ def main():
     # python rrs.py conf.yaml rollingtopwords.yaml
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
+    metric = sys.argv[3]
     ref = open(conf_file, "r")
     sample = yaml.load(ref)
     result = dict(sample)
@@ -279,7 +270,14 @@ def main():
                 step[k] = int(vrange.split(",")[2])
                 start[k] = int(vrange.split(",")[0])
                 end[k] = int(vrange.split(",")[1])
-    rrs(conf,sample,start,end,step,typ,basefile,0)
+    relation_file = sys.argv[4]
+    rel = open(relation_file, "r")
+    rel_dict = dict(yaml.load(rel))
+    relations = dict()
+    for r in rel_dict:
+        split = rel_dict[r].split(",")
+        relations[r] = list(split[:len(split)-1])
+    rrs(conf,sample,start,end,step,typ,relations,basefile,metric)
 
 if __name__ == '__main__':
     main()

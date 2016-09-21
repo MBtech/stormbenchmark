@@ -102,7 +102,7 @@ def step_up(result,start,end,step,typ,p,c):
     
 def ee_design(conf,sample,start,end,step,typ, basefile):
     #p = [4,4,4,4,4,4,3,3]
-    p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+    p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
     design_space=list()
     result = dict(sample)
     index = 0
