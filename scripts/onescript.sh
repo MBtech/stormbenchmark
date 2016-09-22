@@ -124,7 +124,8 @@ redis_getmetrics $i
 #rm -rf logs
 echo "Current iteration number is $i"
 #Arguments: Directory, Index, Threads, number of nodes, number of spout, percentile latency, skip intervals, tolerance
-python process.py json_files/ $i 90 3 3 99 10 1.1
+if python process.py json_files/ $i 90 3 3 99 10 1.1; then echo "Exit code of 0, success"; else continue; fi
+#python process.py json_files/ $i 90 3 3 99 10 1.1
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
 break
 #let i=i+1
@@ -137,7 +138,8 @@ break
 #redis_cleanup	
 #break
 #fi
-else 
+else
+  echo "Run failed" 
   if [ "$retries" -eq "0" ]
   then
     break
