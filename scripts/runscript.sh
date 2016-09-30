@@ -65,7 +65,7 @@ done < hosts
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
 mkdir -p config_files
-i=70
+i=0
 #nfiles=$(ls config_files/ | wc -l)
 echo nfiles
 mkdir -p utils
@@ -123,7 +123,7 @@ redis_getmetrics $i
 #rm -rf logs
 echo "Current iteration number is $i"
 #Arguments: Directory, Index, Threads, number of nodes, number of spout, percentile latency, skip intervals, tolerance
-python process.py json_files/ $i 90 3 3 99 10 1.1
+if python process.py json_files/ $i 90 3 3 99 10 1.1; then echo "Exit code of 0, success"; else continue; fi
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
 let i=i+1
 nfiles=$(ls config_files/ | wc -l)

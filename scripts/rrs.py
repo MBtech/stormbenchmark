@@ -10,6 +10,7 @@ import itertools
 import subprocess
 import pandas
 from utils import generate_random
+from utils import utility_function
 # Returns an ordered dictionary based on the order in which the parameters were found in the file
 #http://stackoverflow.com/questions/5121931/in-python-how-can-you-load-yaml-mappings-as-ordereddicts
 def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
@@ -143,7 +144,7 @@ def get_results(start, end, design_space, basefile, metric):
     for i in range(start, end):
         if i in list(cw['no.']):
             ret_array.append(i)
-            metric_values.append(cw[metric][list(cw['no.']).index(i)])
+            metric_values.append(utility_function(metric,cw,i))
         else:
            ret_array.append(i)
            metric_values.append(sys.maxint)

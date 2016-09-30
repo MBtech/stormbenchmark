@@ -128,6 +128,20 @@ def get_neighbor(result,start,end,step,typ,p,conf):
         xi = generate_random(result,start,end,step,typ,p,conf)
     return xi
 
+def utility_function(metric,cw,i):
+    metrics = metric.split(',')
+    limits = dict()
+    improve_metric = ''
+    for m in metrics:
+        if '=' in m:
+            limits[m.split('=')[0]] = int(m.split('=')[1])
+        else:
+            improve_metric = m
+    for m in limits.keys():
+        if cw[m][list(cw['no.']).index(i)]>=limits[m]:
+           return cw[improve_metric][list(cw['no.']).index(i)]
+    return sys.maxint
+
 # Get results for the specific configurations
 def get_results(start, end, design_space, basefile, metric):
     write(design_space, start,end ,basefile)
@@ -142,7 +156,7 @@ def get_results(start, end, design_space, basefile, metric):
     for i in range(start, end):
         if i in list(cw['no.']):
             ret_array.append(i)
-            metric_values.append(cw[metric][list(cw['no.']).index(i)])
+            metric_values.append(utility_function(metric,cw,i))
         else:
            ret_array.append(i)
            metric_values.append(sys.maxint)
@@ -154,7 +168,10 @@ def get_results(start, end, design_space, basefile, metric):
 # Get the metric readings for all experiments
 def get_metric(metric):
     cw = pandas.read_csv("numbers.csv")
-    return list(cw[metric][:])
+    metrics = list()
+    for i in range(0,len(cw)):
+        metrics.append(utility_function(metric,cw,i))
+    return metrics
 
 def get_pbest(design_space, numbers, conf, metric_values, start,end, step, typ, relations):
     vals = dict(list())
@@ -226,7 +243,14 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
     metric_values,numbers = get_results(0,m,design_space, basefile,metric)
     fx0 = min(metric_values)
     x0 = design_space[numbers[metric_values.index(fx0)]]
-
+    
+    design_space.append(x0)
+    value,number = get_results(m,m+1,design_space, basefile,metric)
+    metric_values.extend(value)
+    numbers.extend(number)
+    fx0 = min(metric_values)
+    x0 = design_space[numbers[metric_values.index(fx0)]]
+    
     n_start = dict(start)
     n_end = dict(end)
     local_search = True
@@ -260,8 +284,17 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
             fx_local = min(list(metric_values))
             x_local = design_space[numbers[metric_values.index(fx_local)]]
             if fx_local < fx0:
-                x0 = dict(x_local)
-                fx0 = fx_local
+                print "Potential best result"
+                design_space.append(x_local)
+                value,number = get_results(length+np,length+np+1,design_space, basefile,metric)
+                metric_values.extend(value)
+                numbers.extend(number)
+                f_temp = min(metric_values)
+                x_temp = design_space[numbers[metric_values.index(f_temp)]]
+                
+                if f_temp < fx0:
+                    x0 = dict(x_local)
+                    fx0 = fx_local
 
             length = len(design_space)
             # Get potentially the best configuration according to the local search
@@ -274,13 +307,23 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
 
             fx_new = val
             if fx_new < fx0:
-                print "New Best configuration found"
-                x0 = dict(x_new)
-                fx0 = fx_new
-                alpha_passed =1
-                neighborhood_size *= alpha_passed
-                print "Best result: " + str(fx0)
-                continue
+                print "Potential best result"
+                design_space.append(x_new)
+                value,number = get_results(length,length+1,design_space, basefile,metric)
+                metric_values.extend(value)
+                numbers.extend(number)
+                f_temp = min(metric_values)
+                x_temp = design_space[numbers[metric_values.index(f_temp)]]
+                length = len(design_space)
+
+                if f_temp < fx0:
+                    print "New Best configuration found"
+                    x0 = dict(x_new)
+                    fx0 = fx_new
+                    alpha_passed =1
+                    neighborhood_size *= alpha_passed
+                    print "Best result: " + str(fx0)
+                    continue
             else:
                 print "Next best configuration using quadratic equations"
                 # Get potentially the best configuration according to the local search
@@ -290,12 +333,19 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
                 fx_new = val
                 length = len(design_space)
                 if fx_new < fx0:
-                    x0 = dict(x_new)
-                    fx0 = fx_new
-                    alpha_passed =1
-                    neighborhood_size *= alpha_passed
-                    print "Best result: " + str(fx0)
-                    continue
+                    print "Potential best result"
+                    design_space.append(x_new)
+                    value,number = get_results(length,length+1,design_space, basefile,metric)
+                    f_temp = min(list(value))
+                    length = len(design_space)
+                    
+                    if f_temp< fx0:   
+                        x0 = dict(x_new)
+                        fx0 = fx_new
+                        alpha_passed =1
+                        neighborhood_size *= alpha_passed
+                        print "Best result: " + str(fx0)
+                        continue
                 else:
                     print "Shrink phase"
                     alpha_passed = alpha
@@ -322,9 +372,19 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
         values = get_metric(metric)
         if fx_new < numpy.percentile(values,80):
             if fx_new < fx0:
-                fx0 = fx_new
-                x0 = dict(x_new)
-                print "Best result: " + str(fx0)
+                print "Potential best result" 
+                design_space.append(x_new)
+                value,number = get_results(length,length+1,design_space, basefile,metric)
+                metric_values.extend(value)
+                numbers.extend(number)
+                f_temp = min(metric_values)
+                x_temp = design_space[numbers[metric_values.index(f_temp)]]
+                length = len(design_space)
+                
+                if f_temp < fx0:
+                    fx0 = fx_new
+                    x0 = dict(x_new)
+                    print "Best result: " + str(fx0)
             if len(values)>=total_runs:
                 break
             else:

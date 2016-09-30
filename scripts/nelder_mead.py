@@ -162,20 +162,20 @@ def neldermead(conf,sample,start,end,step,typ,relations, basefile, metric):
     total_runs = 50
 #    n = 4
     #p = [4,4,4,4,4,4,3,3]
-    p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+    p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
     design_space=list()
     result = dict(sample)
     metric_values = list()
     # Generate the first n samples
     print "Generating first " + str(n+1) + " points"
-    while len(design_space)<n+1:
+    while len(design_space)<=n+1:
         result = generate_random(result,start,end,step,typ,relations,p,conf)
         design_space.append(dict(result))
         values,elements = get_results(len(design_space)-1, len(design_space),design_space,basefile,metric)
-        if values[0]==sys.maxint:
-            del design_space[-1]
-        else:
-            metric_values.extend(values)
+        #if values[0]==sys.maxint:
+        #    del design_space[-1]
+        #else:
+        metric_values.extend(values)
 #    print metric_values
     vals = list(metric_values)
     configs = list(design_space)
@@ -193,7 +193,12 @@ def neldermead(conf,sample,start,end,step,typ,relations, basefile, metric):
         # Reflection Step
         print "Reflection"
         xr = reflection(x0, x_sorted[len(x_sorted)-1], alpha, conf,typ, start,end,step,relations)
-        design_space.append(xr)
+        if xr in design_space:
+            print "Repetition. Replacing it with another random point"
+            xr = generate_random(result,start,end,step,typ,relations,p,conf)
+            design_space.append(dict(xr))
+        else:
+            design_space.append(xr)
         fx_r,elements = get_results(len(design_space)-1, len(design_space), design_space, basefile,metric)
         if fx_r < fx[len(fx)-2] and fx_r >= fx[0]:
             x_sorted[len(x_sorted)-1] = dict(xr)

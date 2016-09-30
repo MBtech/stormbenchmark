@@ -34,6 +34,7 @@ import storm.benchmark.metrics.IMetricsCollector;
 import storm.benchmark.metrics.MetricsCollectorConfig;
 import org.apache.storm.metric.LoggingMetricsConsumer;
 import storm.benchmark.metrics.LatencyConsumer;
+import storm.benchmark.util.BenchmarkUtils;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
@@ -101,7 +102,8 @@ public class Runner {
           throws AlreadyAliveException, InvalidTopologyException {
     String name = (String) config.get(Config.TOPOLOGY_NAME);
     topology = app.getTopology(config);
-    config.registerMetricsConsumer(LatencyConsumer.class, 6); 
+    int workers = BenchmarkUtils.getInt(config, "topology.workers", 6);
+    config.registerMetricsConsumer(LatencyConsumer.class, workers); 
     try{
 	StormSubmitter.submitTopology(name, config, topology);
     }

@@ -64,7 +64,7 @@ def oat_design(conf, sample, start,end,step):
             design_space.append(dict(temp))
     write(design_space)
 
-def generate_random(result,start,end,step,typ,p,conf,s):
+def generate_random(result,start,end,step,typ,p,conf,s,relations):
     i = 0
     denom = 0 
     steps = 0
@@ -82,10 +82,15 @@ def generate_random(result,start,end,step,typ,p,conf,s):
                 result[c] = pow(2,(start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))))
 	else:
 	    result[c] = start[c] + (((end[c]-start[c])/denom) * random.randint(0,steps-1))
+        if c in relations:
+            for e in relations[c]:
+                result[e] = pow(2,int(math.ceil(math.log(result[c],2))))
+                if result[c]*1.1>result[e]:
+                    result[e] = pow(2,int(math.ceil(math.log(result[c],2)))+1)
         i = i +1
     return result
 
-def step_up(result,start,end,step,typ,p,c):
+def step_up(result,start,end,step,typ,p,c,relations):
     if c in typ.keys():
         if typ[c] == "boolean":
             if result[c]==True: result[c]=False;
@@ -94,33 +99,38 @@ def step_up(result,start,end,step,typ,p,c):
             result[c] = pow(2,math.log(result[c],2) + ((end[c]-start[c])/(p-1)))
     else:
         result[c] = result[c] + ((end[c]-start[c])/(p-1))
-        if result[c] <= end[c]:
-	    return result
-        else:
+        if result[c] > end[c]:
             result[c] = end[c]
-            return result
     
-def ee_design(conf,sample,start,end,step,typ, basefile):
+    if c in relations:
+        for e in relations[c]:
+            result[e] = pow(2,int(math.ceil(math.log(result[c],2))))
+            if result[c]*1.1>result[e]:
+                result[e] = pow(2,int(math.ceil(math.log(result[c],2)))+1)
+    return result
+    
+def ee_design(conf,sample,start,end,step,typ, basefile,relations):
     #p = [4,4,4,4,4,4,3,3]
-    p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+    #p = [4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+    p = [3,4,4,4,4,4,3,2,3,2,4,3]
     design_space=list()
     result = dict(sample)
     index = 0
-    r = 4
+    r = 8
     for c in conf:
         for i in range(0,r):
             #print c,index
-            result = generate_random(result,start,end,step,typ,p,conf,c)
+            result = generate_random(result,start,end,step,typ,p,conf,c,relations)
             design_space.append(dict(result))
             print result
-            step_up(result,start,end,step,typ,p[index],c)
+            step_up(result,start,end,step,typ,p[index],c,relations)
             design_space.append(dict(result))
             print result
         index = index + 1
     write(design_space, basefile)    
 
 def main():
-    # python generate_configs.py conf.yaml
+    # python generate_configs.py conf.yaml rollingcount.yaml relations.yaml
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
     ref = open(conf_file, "r")
@@ -154,6 +164,13 @@ def main():
     print end 
     print step
     print typ
+    relation_file = sys.argv[3]
+    rel = open(relation_file, "r")
+    rel_dict = dict(yaml.load(rel))
+    relations = dict()
+    for r in rel_dict:
+        split = rel_dict[r].split(",")
+        relations[r] = list(split[:len(split)-1])
     '''print start
     print end
     print step
@@ -169,7 +186,7 @@ def main():
     
     #factorial_design(conf,sample)
     #oat_design(conf,sample,start,end,step)
-    ee_design(conf,sample,start,end,step,typ,basefile)
+    ee_design(conf,sample,start,end,step,typ,basefile,relations)
  
 def factorial_design(conf, sample):
     design_space = list()
