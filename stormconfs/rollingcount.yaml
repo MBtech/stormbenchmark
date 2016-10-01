@@ -8,7 +8,7 @@ metrics.enabled: true
 metrics.path: reports
 metrics.poll: 10000
 metrics.time: 3600000
-orker.profiler.enabled: true
+worker.profiler.enabled: true
 spout.file: /A_Tale_of_Two_City.txt
 topology.acker.executors: 6
 topology.executor.receive.buffer.size: 8192
@@ -19,3 +19,4 @@ topology.transfer.buffer.size: 8192
 topology.worker.childopts: -Xmx8g -Djava.net.preferIPv4Stack=true
 topology.workers: 9
 window.length: 10
+topology.tdigestserver: 130.104.230.106
