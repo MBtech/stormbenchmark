@@ -34,16 +34,17 @@ file_count = len(files)
 # Usage: python ee.py lat_90 example.csv
 metric = sys.argv[1]
 data_file = sys.argv[2]
+conf_file = sys.argv[3]
 cw = pd.read_csv(data_file)
 design_space = list()
-ref = open("conf2.yaml", "r")
+ref = open(conf_file, "r")
 sample = yaml.load(ref)
 result = dict(sample)
 start = dict()
 end = dict()
 step = dict()
 typ = dict()
-ref = open("conf2.yaml", "r")
+ref = open(conf_file, "r")
 conf = ordered_load(ref, yaml.SafeLoader).keys()
 #conf = ["component.split_bolt_num","component.rolling_count_bolt_num","component.rank_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
 #conf = ["component.rolling_count_bolt_num","component.split_bolt_num","component.spout_num","topology.acker.executors","topology.max.spout.pending","topology.worker.receiver.thread.count","topology.workers"]
@@ -53,7 +54,8 @@ alt2 = ["rolling_count","split"]
 alt2.extend(alt)
 metrics = ['lat_90','lat_80','lat_70','lat_60','lat_50','throughput']
 #p = [4,4,4,4,4,3,3]
-p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+#p = [4,4,4,4,4,4,3,3,2,3,3,3,3,2,4,3]
+p = [3,4,4,4,4,4,3,2,3,2,4,3]
 for k in sample:
     vrange = sample[k]
     if len(vrange.split(","))==2:
@@ -72,7 +74,7 @@ for k in sample:
 
 index = 0
 run = 0
-r = 4
+r = 8
 mu = dict().fromkeys(conf)
 sigma = dict().fromkeys(conf)
 mu_star = dict().fromkeys(conf)
