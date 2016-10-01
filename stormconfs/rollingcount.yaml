@@ -1,8 +1,8 @@
 benchmark.spout.interval: 10000
 benchmark.spout.tuple_limit: 450000
 component.rolling_count_bolt_num: 39
-component.split_bolt_num: 36
-component.spout_num: 9
+component.split_bolt_num: 33
+component.spout_num: 12
 emit.frequency: 1
 metrics.enabled: true
 metrics.path: reports
@@ -10,12 +10,12 @@ metrics.poll: 10000
 metrics.time: 3600000
 orker.profiler.enabled: true
 spout.file: /A_Tale_of_Two_City.txt
-topology.acker.executors: 9
-topology.executor.receive.buffer.size: 16384
-topology.executor.send.buffer.size: 16384
-topology.max.spout.pending: 10000
+topology.acker.executors: 6
+topology.executor.receive.buffer.size: 8192
+topology.executor.send.buffer.size: 8192
+topology.max.spout.pending: 6000
 topology.name: RollingCount
-topology.transfer.buffer.size: 16384
+topology.transfer.buffer.size: 8192
 topology.worker.childopts: -Xmx8g -Djava.net.preferIPv4Stack=true
 topology.workers: 9
 window.length: 10

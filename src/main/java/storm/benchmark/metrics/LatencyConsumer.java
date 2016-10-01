@@ -57,12 +57,14 @@ public class LatencyConsumer implements IMetricsConsumer {
     static transient DateFormat dateFormat;
     static transient Calendar cal;
     static transient TDigestClient tc; 
+    static transient String serverip; 
     int count = 1;
     long num = 0;
     @Override
     public void prepare(Map stormConf, Object registrationArgument, TopologyContext context, IErrorReporter errorReporter) { 
     jedis = new Jedis("130.104.230.106");
-    tc = new TDigestClient("130.104.230.106",11111);
+    serverip = (String)stormConf.get("topology.tdigestserver");
+    tc = new TDigestClient(serverip,11111);
     tc.connection();
     num = ((Long)stormConf.get("component.rolling_count_bolt_num"))/6l;
     dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
