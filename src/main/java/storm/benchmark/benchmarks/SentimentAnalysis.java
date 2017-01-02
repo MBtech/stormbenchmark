@@ -74,6 +74,7 @@ public class SentimentAnalysis extends StormBenchmark {
     final int posBoltNum = BenchmarkUtils.getInt(config, POSITIVE_NUM, DEFAULT_RC_BOLT_NUM);
     final int negBoltNum = BenchmarkUtils.getInt(config, NEGATIVE_NUM, DEFAULT_RC_BOLT_NUM);
     final int scoreBoltNum = BenchmarkUtils.getInt(config, SCORE_NUM, DEFAULT_RC_BOLT_NUM);
+    final int logBoltNum = BenchmarkUtils.getInt(config, "component.logging_bolt_num", DEFAULT_RC_BOLT_NUM);
     final int windowLength = BenchmarkUtils.getInt(config, WINDOW_LENGTH,
             RollingBolt.DEFAULT_SLIDING_WINDOW_IN_SECONDS);
     final int emitFreq = BenchmarkUtils.getInt(config, EMIT_FREQ,
@@ -90,7 +91,7 @@ public class SentimentAnalysis extends StormBenchmark {
         builder.setBolt(POSITIVE_ID, new PositiveBolt(), posBoltNum).localOrShuffleGrouping(STEM_ID);   //RollingCountObjects
         builder.setBolt(NEGATIVE_ID, new NegativeBolt(), negBoltNum).localOrShuffleGrouping(POSITIVE_ID);
         builder.setBolt(SCORE_ID, new ScoreBolt(), scoreBoltNum).localOrShuffleGrouping(NEGATIVE_ID);
-        builder.setBolt("logging", new LoggingBolt().withFields(Cons.TUPLE_VAR_MSG, Cons.TUPLE_VAR_SCORE), 1)
+        builder.setBolt("logging", new LoggingBolt().withFields(Cons.TUPLE_VAR_MSG, Cons.TUPLE_VAR_SCORE), logBoltNum)
             .localOrShuffleGrouping(SCORE_ID);
 	return builder.createTopology();
   }

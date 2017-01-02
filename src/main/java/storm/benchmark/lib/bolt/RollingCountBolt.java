@@ -29,7 +29,6 @@ import org.apache.storm.tuple.Values;
 import org.apache.log4j.Logger;
 import storm.benchmark.lib.reducer.LongSummer;
 import storm.benchmark.tools.SlidingWindow;
-import storm.benchmark.metrics.LatencyConsumer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;

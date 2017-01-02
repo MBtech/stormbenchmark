@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import storm.benchmark.util.Cons;
+import storm.benchmark.tools.HDFSFileReaderLimited;
 
 /**
  * Simple Bolt that checks incoming sentence and remove any words that are useless for scoring by
@@ -61,7 +62,7 @@ public class StemmingBolt extends BaseBasicBolt {
          node.put(Cons.TEXT, text);
          node.put(Cons.MOD_TXT, modified.toString());
 
-         collector.emit(new Values(node.toString()));
+         collector.emit(new Values(node.toString(),tuple.getValue(1)));
       } catch (Exception e) {
          LOG.error("Cannot process input. Ignore it", e);
       }
@@ -69,7 +70,7 @@ public class StemmingBolt extends BaseBasicBolt {
 
    @Override
    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG));
+      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG, "timestamp"));
    }
 
    @Override
@@ -80,15 +81,16 @@ public class StemmingBolt extends BaseBasicBolt {
    private static class UselessWords {
       private Set<String> uselessWords;
       private static UselessWords _singleton;
+      private HDFSFileReaderLimited reader;
 
       private UselessWords() {
          uselessWords = new HashSet<String>();
-
+         this.reader = new HDFSFileReaderLimited("hdfs://nimbus1:9000/stop_words.txt");
+          String line;
          //Add more "useless" words and load from file or database
-         uselessWords.add("add");
-         uselessWords.add("about");
-         uselessWords.add("be");
-         uselessWords.add("before");
+         while ((line = reader.nextLine())!=null){
+             uselessWords.add(line);         
+         }
       }
 
       static UselessWords get() {

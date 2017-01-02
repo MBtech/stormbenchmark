@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import storm.benchmark.util.Cons;
+import storm.benchmark.tools.HDFSFileReaderLimited;
 
 /**
  * Simple Bolt that check words of incoming sentence and mark sentence with a positive score.
@@ -55,7 +56,7 @@ public class PositiveBolt extends BaseBasicBolt {
 
          node.put(Cons.NUM_POSITIVE, (double) positiveWordsSize / wordsSize);
 
-         collector.emit(new Values(node.toString()));
+         collector.emit(new Values(node.toString(),tuple.getValue(1)));
 
       } catch (Exception e) {
          LOG.error("Cannot process input. Ignore it", e);
@@ -65,7 +66,7 @@ public class PositiveBolt extends BaseBasicBolt {
 
    @Override
    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG));
+      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG,"timestamp"));
    }
 
    @Override
@@ -76,18 +77,15 @@ public class PositiveBolt extends BaseBasicBolt {
    private static class PositiveWords {
       private Set<String> positiveWords;
       private static PositiveWords _singleton;
-
+      private HDFSFileReaderLimited reader;
       private PositiveWords() {
          positiveWords = new HashSet<String>();
-
-         //Add more "positive" words and load from file or database
-         positiveWords.add("admire");
-         positiveWords.add("bonus");
-         positiveWords.add("calm");
-         positiveWords.add("good");
-         positiveWords.add("accept");
-         positiveWords.add("happiness");
-         positiveWords.add("amazing");
+         this.reader = new HDFSFileReaderLimited("hdfs://nimbus1:9000/positive_words.txt");
+          String line;
+         //Add more "useless" words and load from file or database
+         while ((line = reader.nextLine())!=null){
+             positiveWords.add(line);
+         }
       }
 
       static PositiveWords get() {

@@ -64,6 +64,13 @@ done < hosts
 #STORM_HOME=~/ansible-test/storm/apache-storm-0.9.5
 STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
 REDIS_HOME=~/bilal/redis-3.2.0/src
+TOPOLOGY=RollingTopWords
+CONF=rollingtopwords.yaml
+
+#Kil any older running topologies
+$STORM_HOME/bin/storm kill $TOPOLOGY -w 1
+sleep 5
+
 mkdir -p config_files
 i=$1
 #nfiles=$(ls config_files/ | wc -l)
@@ -72,13 +79,13 @@ mkdir -p utils
 mkdir -p net_utils
 mkdir -p perf
 cleanup
-max=5
+max=3
 retries=3
 while true; do
 #python randomize.py
-cp config_files/test$i.yaml ~/.storm/rollingcount.yaml
+cp config_files/test$i.yaml ~/.storm/$CONF
 #cat ~/.storm/sol.yaml
-../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/rollingcount.yaml  storm.benchmark.tools.Runner storm.benchmark.benchmarks.RollingCount &
+../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/$CONF  storm.benchmark.tools.Runner storm.benchmark.benchmarks.$TOPOLOGY &
 utilizations $i
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
 nohup java -cp ~/bilal/TDigestService/target/TDigestService-1.0-SNAPSHOT-jar-with-dependencies.jar com.tdigestserver.TServer 11111 &
@@ -110,14 +117,16 @@ done
 
 #sleep 210
 python storm_metrics.py $i
-$STORM_HOME/bin/storm kill RollingCount -w 1 
+$STORM_HOME/bin/storm kill $TOPOLOGY -w 1 
 sleep 20 
 
 if [[ $flag ]]; then
 mkdir -p metrics
 copycounters $i
 #getmetrics $i
-redis_getmetrics $i
+
+#redis_getmetrics $i
+
 #mkdir -p logs/logs/
 #cp logs/metrics.log logs/logs/metrics.log
 #ls -r logs/logs/metrics* | xargs -I {} cat {} >> metrics/metrics$i.log
@@ -149,6 +158,6 @@ else
   fi
 fi
 #cleanup
-redis_cleanup
+#redis_cleanup
 done
 #tar -czf test_72k.tar.gz config_files/ json_files/ net_utils/ reports/ utils/ metrics/ numbers.csv

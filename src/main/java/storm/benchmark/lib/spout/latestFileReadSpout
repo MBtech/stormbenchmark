@@ -1,0 +1,189 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License
+ */
+package storm.benchmark.lib.spout;
+
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichSpout;
+import org.apache.storm.tuple.Fields;
+import org.apache.storm.tuple.Values;
+import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import org.apache.log4j.Logger;
+import storm.benchmark.tools.FileReader;
+
+import java.util.Map;
+import java.util.logging.Level;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.Instant;
+import storm.benchmark.metrics.Latencies;
+import storm.benchmark.tools.HDFSFileReader;
+
+public class FileReadSpout extends BaseRichSpout {
+
+    private static final Logger LOG = Logger.getLogger(FileReadSpout.class);
+    private static final long serialVersionUID = -2582705611472467172L;
+
+    public static final String DEFAULT_FILE = "hdfs://nimbus1:9000/A_Tale_of_Two_City.txt";
+    public static final boolean DEFAULT_ACK = false;
+    public static final String FIELDS = "sentence";
+    public static final String TIMESTAMP = "timestamp";
+    public static long INTERVAL = 10000;
+    public static long LIMIT = 50000;
+    public static long TOTALTIME = 1800000;
+    private long spout_num = 0;
+    private long executorLimit = 0;
+
+    public final boolean ackEnabled;
+    public HDFSFileReader reader;
+    private SpoutOutputCollector collector;
+    public static Configuration conf = new Configuration();
+    private long count = 0;
+    private boolean flag = true;
+    private long time = 0;
+    private long ncount = 0;
+    private long next = 0;
+    private float timeGap = 0;
+    private int countPerGap = 0;
+    private long last = 0;
+    private long RAMPTIME = 150000;
+    //transient Latencies _latencies;
+    private float factor = 1;
+    public static final HashMap<Long, Long> timeStamps
+            = new HashMap<Long, Long>();
+
+    public FileReadSpout() {
+        this(DEFAULT_ACK, DEFAULT_FILE);
+    }
+
+    public FileReadSpout(boolean ackEnabled) {
+        this(ackEnabled, DEFAULT_FILE);
+    }
+
+    public FileReadSpout(boolean ackEnabled, String file) {
+        this.ackEnabled = ackEnabled;
+
+        this.reader
+                = new HDFSFileReader(file);
+    }
+
+    public FileReadSpout(boolean ackEnabled, HDFSFileReader reader) {
+        this.ackEnabled = ackEnabled;
+        this.reader = reader;
+    }
+
+    @Override
+    public void open(Map conf, TopologyContext context,
+            SpoutOutputCollector collector) {
+        time = System.currentTimeMillis();
+      //  _latencies = new Latencies();
+       // context.registerMetric("latencies", _latencies, 10);
+        System.out.println("Conf values " + conf.toString());
+        spout_num = (Long) conf.get("component.spout_num");
+        INTERVAL = (Long) conf.get("benchmark.spout.interval");
+        LIMIT = (Long) conf.get("benchmark.spout.tuple_limit");
+        executorLimit = LIMIT / spout_num;
+        timeGap = (float)INTERVAL / executorLimit;
+        System.out.println("Open!! Time Gap " + timeGap  + " "+INTERVAL + " "+executorLimit);
+        //If time Gap is smaller than a milli second send multiple
+        //tuples in each millisecond gap
+        if (timeGap < 1) {
+            countPerGap = (int) (1 / timeGap);
+            System.out.println("Open!! Time Gap " + timeGap + " countPerGap " + countPerGap);
+	    timeGap = 1;
+        }else{
+	    countPerGap = 1;
+	}
+	last = time;
+        next = time + (long)timeGap;
+        this.collector = collector;
+    }
+
+    @Override
+    public void nextTuple() {
+        long current = System.currentTimeMillis();
+        if (ackEnabled && current-time<TOTALTIME) {
+            if(current-time<RAMPTIME){
+	         factor = (RAMPTIME/(current-time));
+            }else{
+                 factor = 1;
+	    }
+            
+	    long timePast = current - last;
+	    long tupleCount  = (long) ((timePast/(timeGap*factor))*countPerGap) ; 
+            System.out.println("Amount of time Passed " + timePast + " Time Gap " + timeGap +" with factor "+ factor + " countPerGap " + countPerGap);
+	    long extra = (long) (timePast % timeGap);
+	    //if (next <= current + timeGap) {
+                //long diff = current - time;
+                System.out.println("Success!!! Current time: " + current + " and last time " + last + " tuple Count: " + tupleCount + " extra: "+extra);
+                for (int i = 0; i < tupleCount; i++) {
+                   // if (flag && ncount < executorLimit) {
+                        collector.emit(new Values(reader.nextLine(),current), count);
+                        timeStamps.put(count, current);
+                        count++;
+                     //  ncount++;
+                   /* } else if (ncount >= executorLimit) {
+                       ncount = 0;
+                        flag = false;
+                    } else if (diff >= INTERVAL) {
+                        time = current;
+                        flag = true;
+                    }*/
+                }
+                //next = next + (long) timeGap;
+		last = current - extra;
+            //System.out.println("Next one!!! Current time: " + current + " and next time " + next);
+	    //}else{
+            //System.out.println("Failure!!! Current time: " + current + " and next time " + next);
+            //}
+
+        } else if (current-time<TOTALTIME) {
+            collector.emit(new Values(reader.nextLine()));
+        }
+    }
+
+    @Override
+    public void ack(Object msgId) {
+        Long id = (Long) msgId;
+        if(!timeStamps.containsKey(id) || timeStamps.get(id)==null || id==null){
+          System.out.println("Id of the message is: "+ id);
+        }
+        else{
+         try{
+         long start = timeStamps.get(id);
+         timeStamps.remove(id);
+         //_latencies.add((int) (System.currentTimeMillis() - start));
+         }
+         catch(NullPointerException ex){
+               System.out.println("Id of the message is: "+ id);
+         }
+        }
+        //System.out.println(System.currentTimeMillis() - timeStamps.get(id));
+        //timeStamps.put(id, System.currentTimeMillis()-timeStamps.get(id));
+    }
+
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+        declarer.declare(new Fields(FIELDS,TIMESTAMP));
+    }
+
+}

@@ -53,7 +53,7 @@ public class ScoreBolt extends BaseBasicBolt {
 
          }
 
-         collector.emit(new Values(node.path(Cons.ID).asText(), node.toString(), score));
+         collector.emit(new Values(node.path(Cons.ID).asText(), node.toString(), score,tuple.getValue(1)));
 
       } catch (Exception e) {
          LOG.error("Cannot process input. Ignore it", e);
@@ -63,7 +63,7 @@ public class ScoreBolt extends BaseBasicBolt {
 
    @Override
    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(Cons.TUPLE_VAR_KEY, Cons.TUPLE_VAR_MSG, Cons.TUPLE_VAR_SCORE));
+      declarer.declare(new Fields(Cons.TUPLE_VAR_KEY, Cons.TUPLE_VAR_MSG, Cons.TUPLE_VAR_SCORE, "timestamp"));
    }
 
    @Override

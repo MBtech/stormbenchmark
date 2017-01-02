@@ -66,7 +66,6 @@ public class LatencyConsumer implements IMetricsConsumer {
     serverip = (String)stormConf.get("topology.tdigestserver");
     tc = new TDigestClient(serverip,11111);
     tc.connection();
-    num = ((Long)stormConf.get("component.rolling_count_bolt_num"))/6l;
     dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     }
 

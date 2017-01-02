@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import storm.benchmark.util.Cons;
+import storm.benchmark.tools.HDFSFileReaderLimited;
 
 /**
  * Simple Bolt that check words of incoming sentence and mark sentence with a negative score.
@@ -55,7 +56,7 @@ public class NegativeBolt extends BaseBasicBolt {
 
          node.put(Cons.NUM_NEGATIVE, (double) negativeWordsSize / wordsSize);
 
-         collector.emit(new Values(node.toString()));
+         collector.emit(new Values(node.toString(),tuple.getValue(1)));
 
       } catch (Exception e) {
          LOG.error("Cannot process input. Ignore it", e);
@@ -65,7 +66,7 @@ public class NegativeBolt extends BaseBasicBolt {
 
    @Override
    public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG));
+      declarer.declare(new Fields(Cons.TUPLE_VAR_MSG, "timestamp"));
    }
 
    @Override
@@ -76,20 +77,15 @@ public class NegativeBolt extends BaseBasicBolt {
    private static class NegativeWords {
       private Set<String> negativeWords;
       private static NegativeWords _singleton;
-
+      public HDFSFileReaderLimited reader;
       private NegativeWords() {
          negativeWords = new HashSet<String>();
-
-         //Add more "negative" words and load from file or database
-         negativeWords.add("abort");
-         negativeWords.add("betray");
-         negativeWords.add("crash");
-         negativeWords.add("thief");
-         negativeWords.add("disappointment");
-         negativeWords.add("disease");
-         negativeWords.add("bad");
-         negativeWords.add("sad");
-         negativeWords.add("evil");
+         this.reader = new HDFSFileReaderLimited("hdfs://nimbus1:9000/negative_words.txt");
+         String line; 
+         //Add more "useless" words and load from file or database
+         while ((line = reader.nextLine())!=null){
+             negativeWords.add(line);
+         }
       }
 
       static NegativeWords get() {

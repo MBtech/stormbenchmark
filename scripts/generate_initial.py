@@ -21,7 +21,7 @@ def roundDownMultiple(number,multiple):
 def generate_initial(result,start,end,step,typ,relations,p,conf,size):
     cores = int(core_count.get())
     initial_space = list(dict())
-    threads = np.random.dirichlet([5,5],size)
+    threads = np.random.dirichlet([5,5,5,5,5],size)
     lhm = lhs(len(conf),samples=size)
     for i in range(0,len(lhm)):
         sample = lhm[i]

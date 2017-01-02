@@ -46,7 +46,7 @@ def write(design_space, start,end ,basefile):
 def put_limits(value,start,end):
     if value<start:
         return start
-    else:
+    elif value>end:
         return end
     
 # Create a centroid

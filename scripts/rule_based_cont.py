@@ -1,3 +1,4 @@
+import time
 import yaml
 import operator
 import random
@@ -5,6 +6,7 @@ import os
 import math
 import numpy
 import sys
+import glob
 from collections import OrderedDict
 from randomize import selective_write
 import itertools
@@ -49,6 +51,10 @@ def put_limits(value,start,end,step):
         return roundMultiple(value,step)
 
 def utility_function(metric,cw,i):
+    tp_const =''
+    with open('constraint') as f:
+        tp_const = f.readline()
+    metric = 'lat_90,throughput='+tp_const
     metrics = metric.split(',')
     limits = dict()
     improve_metric = ''
@@ -63,18 +69,12 @@ def utility_function(metric,cw,i):
     return sys.maxint
 
 def threshold_tp(metric):
-    metrics = metric.split(',')
-    limits = dict()
-    improve_metric = ''
-    tp = 0
-    for m in metrics:
-        if '=' in m:
-            limits[m.split('=')[0]] = int(m.split('=')[1])
-        else:
-            improve_metric = m
-    for m in limits.keys():
-        tp = limits[m]
-    return tp 
+    tp_const =0
+    with open('constraint') as f:
+        tp_const = f.readline()
+
+    tp_const = int(tp_const)
+    return tp_const
 
 # Write the configuration to the file
 # Can write multiple entries based on the start end end entries
@@ -85,6 +85,14 @@ def write(design_space, start,end ,basefile):
     for i in range(start,end):
         fname = folder+"/"+"test"+str(i)+".yaml"
         selective_write(design_space[i],fname, basefile)
+
+def write_special(design_space,basefile):
+    folder = "config_files"
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    i = 500
+    fname = folder+"/"+"run"+str(i)+".yaml"
+    selective_write(design_space[0],fname, basefile)
 
 def dict_product(dic):
     product = [x for x in apply(itertools.product, dic.values())]
@@ -129,7 +137,7 @@ def get_tp(index):
 # Generates the initial set of exploration points instead of using random points or LHS
 def generate_initial(result,start,end,step,typ,relations,p,conf):
     cores = int(core_count.get())
-    threads = np.random.dirichlet([1000,1000,1000,1000,1000],1)
+    threads = np.random.dirichlet([1000,1000],1)
     k=0
     print conf
     for c in conf:
@@ -187,19 +195,6 @@ def getstats(index):
             tuples[i['boltId']] = int(i['acked'])
             latency[i['boltId']] = float(i['processLatency'])
             capacity[i['boltId']] = float(i['capacity'])
-
-    #for i in tuples.keys():
-    #    processtime[i] = tuples[i]*latency[i]
-    #print processtime
-    #bolt_time = max(processtime.iteritems(), key=operator.itemgetter(1))[1]
-    #print bolt_time
-    #for i in processtime.keys():
-    #    bolts[i] = float(processtime[i]/bolt_time)
-    #print bolts
-    #for i in bolts:
-    #    for k in bolt_ids:
-    #        if i in k:
-    #            result[k] = roundDownMultiple(int(result[k]) * bolts[i], step[k])
     return capacity
 
 def adjust(capacity,result,bolt_ids,step):
@@ -270,14 +265,85 @@ def checkit(c,x0,start,end,change):
     else:
         return True
 
-def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric,lat_p,tp_p,behav_tp,behav_lat):
+def run_best(start, end, design_space, basefile):
+    write_special(design_space,basefile)
+    bashCommand = "./runbest.sh " + str(500) + " &"
+    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    print "finished start the process"
 
-    #steps
+def find_best(f,tp_const):
+    data = pandas.read_csv(f)
+    filtered = data[data['throughput']>=tp_const]
+    if not filtered.empty:
+        lat = list(filtered['lat_90'])
+        print min(lat)
+        i = filtered[filtered['lat_90']==min(lat)]['no.'].iloc[0]
+        r = open('config_files/test'+str(i)+'.yaml', 'r')
+        config = dict(yaml.load(r))
+        return config,i
+    else:
+        return None,None
+
+def find_init(f,tp_const):
+    data = pandas.read_csv(f)
+    max_tp = max(list(data['throughput'])) 
+    i = list(data['throughput']).index(max_tp)
+    r = open('config_files/test'+str(i)+'.yaml', 'r')
+    config = dict(yaml.load(r))
+    return config,i
+
+def continuation(conf,sample,start,end,step,typ, relations,basefile, metric,lat_p,tp_p,behav_tp,behav_lat):
+    #Read current constraints
+    tp = 0
+    with open('constraint') as f:
+        tp_const = f.readline()
+    tp_const = int(tp_const)
+    print tp_const
+    #Read the throughput numbers
+    newest = max(glob.iglob('reports/*.csv'), key=os.path.getmtime)
+    csvfile = newest
+    print csvfile
+    ps = subprocess.Popen(('tail', '-n10',csvfile), stdout=subprocess.PIPE)
+    output = subprocess.check_output(('awk', '-F,','{print $12}'), stdin=ps.stdout)
+    current_tp =  numpy.mean([int(x) for x in output.splitlines()])
+
+    print current_tp
+    #If constraint is met return
+    if current_tp>=tp_const:
+        return False,None,None
+
+    #If constraint isn't met, initiate the optimization.
+    else:
+        f = 'numbers.csv'
+        x,i = find_best(f,tp_const)
+        if x!=None:
+            return True,x,i
+        else:
+            ini = False
+            config,i=find_init(f,tp_const)
+            x,i =rule_based(conf,sample,start,end,step,typ, relations,basefile, metric,lat_p,tp_p,behav_tp,behav_lat,ini,config)
+            return True,x,i
+
+def get_design_space():
+    design_space = list(dict())
+    for f in glob.iglob('config_files/test*.yaml'):
+        r = open(f,'r')
+        config = dict(yaml.load(r))
+        design_space.append(config) 
+    return design_space
+
+	
+def rule_based(conf,sample,start,end,step,typ, relations,basefile, metric,lat_p,tp_p,behav_tp,behav_lat,ini,config):
+
+	    #steps
     #Step 1
     #Generate initial configuration
     p = []
     design_space = list(dict())
-    config = generate_initial(dict(sample),start,end,step,typ,relations,p,conf)
+    if ini:
+        config = generate_initial(dict(sample),start,end,step,typ,relations,p,conf)
+    else:
+        design_space = get_design_space()
     length = len(design_space)
     design_space.append(config)
     metric_values,numbers = get_results(length,length+1,design_space, basefile,metric)
@@ -288,9 +354,9 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric,lat
     index = 0
     f = True
     retry = False
-    #bolt_ids = ["component.rolling_count_bolt_num","component.split_bolt_num" ]
+    bolt_ids = ["component.rolling_count_bolt_num","component.split_bolt_num" ]
     #bolt_ids = ["component.rolling_count_bolt_num","component.split_bolt_num","component.rank_bolt_num"]
-    bolt_ids = ["component.stemming_bolt_num","component.positive_bolt_num","component.negative_bolt_num","component.score_bolt_num","component.logging_bolt_num"]
+    #bolt_ids = ["component.stemming_bolt_num","component.positive_bolt_num","component.negative_bolt_num","component.score_bolt_num","component.logging_bolt_num"]
     while f:
         print f
         max_capacity = 0
@@ -333,7 +399,7 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric,lat
             metric_values,numbers = get_results(length,length+1,design_space, basefile,metric)
             fx_new = min(metric_values)
             tp = get_tp(length)
-            thres_tp = threshold_tp(metric) + (threshold_tp(metric)*0.1)
+            thres_tp = threshold_tp(metric) + (threshold_tp(metric)*0.02)
             if constraint=="throughput" and tp>tp_old and fx_new<=fx0:
                 fx0 = fx_new
                 x0 = dict(x_new)
@@ -399,33 +465,7 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric,lat
         capacity = getstats(index)
         max_capacity = max(capacity.iteritems(), key=operator.itemgetter(1))[1]
         print "Max Capacity is at " + str(max_capacity)
-#        while max_capacity>0.9:
-#            print "Avoiding Overload"
-#            length = len(design_space)
-#            #capacity = getstats(index)
-#            #max_capacity = max(capacity.iteritems(), key=operator.itemgetter(1))[1]
-#            config = upgrade(capacity,dict(x_best),bolt_ids,step)
-#            design_space.append(config)
-#            metric_values,numbers = get_results(length,length+1,design_space, basefile,metric)
-#            fx_new = min(metric_values)
-#            x_new = dict(config)
-#            if fx_new==sys.maxint:
-#                break
-#            elif not retry and fx_new>fx0:
-#                index +=1
-#                fx_best= fx_new
-#                x_best = dict(x_new)
-#            elif fx_new<=fx0:
-#                index+=1
-#                fx_best = fx_new
-#                x_best = dict(x_new)
-#                fx0 = fx_new
-#                x0 = dict(x_new)
-#            elif fx_new>fx0:
-#                break
-#            capacity = getstats(index)
-#            max_capacity = max(capacity.iteritems(), key=operator.itemgetter(1))[1]
-#            print "Max Capacity is at " + str(max_capacity)            
+
         while max_capacity<0.8:
             print "Increasing utilization"
             length = len(design_space)
@@ -503,12 +543,15 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric,lat
                 x_best = dict(x_new)
                 fx0 = fx_new
                 x0 = dict(x_new)       
-      
-        
+    
     print "Best configuration is " + str(x0)
     print "Best metric values is " + str(fx0)
     print "Best configuration is with low resource usage" + str(x_best)
     print "Best metric values is with low resource usage" + str(fx_best)
+    if fx_best*0.9<=fx0:
+        return x_best,length
+    else:
+        return x0,length
 
 
 def main():
@@ -570,7 +613,31 @@ def main():
         i +=1
     print "Starting point is " + str(start)
     #print relations
-    hill_climbing(conf,sample,start,end,step,typ,relations,basefile,metric,lat_p,tp_p,behav_tp,behav_lat)
+    tp_const =0
+    with open('constraint') as f:
+        tp_const = f.readline()
+    tp_const = int(tp_const)
+    print tp_const
+    f = '/home/ubuntu/bilal/storm-benchmark/scripts/numbers.csv'
+    if not os.path.isfile(f):
+        print "File doesn't exist. Running rule based aproach"
+        x,i = rule_based(conf,sample,start,end,step,typ,relations,basefile,metric,lat_p,tp_p,behav_tp,behav_lat,True,dict())
+    else:
+        print "File exists, selecting the best one"
+        x,i = find_best(f,tp_const)
+    print "New configuration found: " + str(x)
+    run_best(i, i+1, [x], basefile)
+    time.sleep(200)
+    while True:
+        flag, x,i = continuation(conf,sample,start,end,step,typ,relations,basefile,metric,lat_p,tp_p,behav_tp,behav_lat)
+        if flag:
+            print "New configuration found: " + str(x)
+            run_best(i, i+1, [x], basefile)
+            time.sleep(200)
+        else:
+            print "Gonna sleep"
+            time.sleep(10)
 
 if __name__ == '__main__':
     main()
+

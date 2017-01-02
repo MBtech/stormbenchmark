@@ -26,6 +26,16 @@ def ordered_load(stream, Loader=yaml.Loader, object_pairs_hook=OrderedDict):
          construct_mapping)
      return yaml.load(stream, OrderedLoader)
 
+def median_tendency(numbers):
+    change = list()
+    print numbers
+    for i in numbers:
+        if i >= 0:
+            change.append(1)
+        else:
+            change.append(-1)
+    print np.median(change)
+    return np.median(change)
 # Number of files in config_files folder
 path, dirs, files = os.walk("config_files").next()
 file_count = len(files)
@@ -89,8 +99,9 @@ for i in range(0,file_count-1,2):
         run = 0
     ref = open("config_files/test"+str(i)+".yaml","r")
     confs = yaml.load(ref)
-    if max(cw[metric][i+1],cw[metric][i])>=2*min(cw[metric][i+1],cw[metric][i]):
-        print "Suspricious run : " + str(i)
+    # Suspicious runs
+    #if max(cw[metric][i+1],cw[metric][i])>=2*min(cw[metric][i+1],cw[metric][i]):
+    #    print "Suspricious run : " + str(i)
     if conf[index] in typ.keys():
         if typ[conf[index]]=="boolean":
             change = cw[metric][i+1] - cw[metric][i]/1.0
@@ -103,11 +114,14 @@ for i in range(0,file_count-1,2):
     run = run +1
 #print d 
 index = 0
+change = dict()
 for i in d:
     cname = conf[index]
     mu[cname] = 0.0
     mu_star[cname] = 0.0
+    change[cname] = list()
     for j in i:
+        change[cname].append(j)
         mu[cname] = mu[cname] + j
         mu_star[cname] = mu_star[cname] + abs(j)
     mu[cname] = mu[cname]/r
@@ -117,6 +131,15 @@ for i in d:
 
 m = sorted(mu_star.items(), key=operator.itemgetter(1), reverse=True)
 print [x[0] for x in m]
+index = 0
+print m
+
+for c in change.keys():
+    print c
+    median_tendency(change[c])
+
+m = sorted(mu.items(), key=operator.itemgetter(1), reverse=True)
+#print [x[0] for x in m]
 index = 0
 print m
 for i in d:

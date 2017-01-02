@@ -266,8 +266,10 @@ def post_restart_phase(values,fx_new,x_new,fx0,x0, length, design_space,basefile
             value,number = get_results(length,length+1,design_space, basefile,metric)
             metric_values.extend(value)
             numbers.extend(number)
-            f_temp = min(metric_values)
-            x_temp = design_space[numbers[metric_values.index(f_temp)]]
+            f_temp = min(list(value))
+            x_temp =  dict(x_new)
+            #f_temp = min(metric_values)
+            #x_temp = design_space[numbers[metric_values.index(f_temp)]]
             length = len(design_space)
 
             if f_temp < fx0:
@@ -289,15 +291,33 @@ def post_restart_phase(values,fx_new,x_new,fx0,x0, length, design_space,basefile
         else:
             local_search = False
             return "restart",design_space,metric_values,numbers,fx0,x0,length
-
-def confirm(x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
+    return fx0,x0,design_space,metric_values,numbers
+def confirm(fx0,x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
     design_space.append(x0)
     value,number = get_results(n1,n2,design_space, basefile,metric)
     metric_values.extend(value)
     numbers.extend(number)
-    fx0 = min(metric_values)
-    x0 = design_space[numbers[metric_values.index(fx0)]]
+    fx_temp = min(list(value))
+    m = list(metric_values)
+    if fx_temp > fx0:
+        m.remove(min(metric_values))
+        second = min(m)
+        print second
+        fx0 = second
+        x0 = design_space[numbers[metric_values.index(fx0)]]
+    print "Best performance "+str(fx0)
+    #fx0 = min(metric_values)
+    #x0 = design_space[numbers[metric_values.index(fx0)]]
     return fx0,x0,design_space,metric_values,numbers
+
+#def confirm(x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
+#    design_space.append(x0)
+#    value,number = get_results(n1,n2,design_space, basefile,metric)
+#    metric_values.extend(value)
+#    numbers.extend(number)
+#    fx0 = min(metric_values)
+#    x0 = design_space[numbers[metric_values.index(fx0)]]
+#    return fx0,x0,design_space,metric_values,numbers
 
 def new_best(fx0,x0,fx_local,x_local,length,np,design_space,basefile,metric,metric_values,numbers):
     if fx_local < fx0:
@@ -306,8 +326,10 @@ def new_best(fx0,x0,fx_local,x_local,length,np,design_space,basefile,metric,metr
         value,number = get_results(length+np,length+np+1,design_space, basefile,metric)
         metric_values.extend(value)
         numbers.extend(number)
-        f_temp = min(metric_values)
-        x_temp = design_space[numbers[metric_values.index(f_temp)]]
+        f_temp = min(list(value))
+        x_temp =  dict(x_local)
+        #f_temp = min(metric_values)
+        #x_temp = design_space[numbers[metric_values.index(f_temp)]]
         print "Verifying"
         if f_temp < fx0:
             print "New Best configuration found"
@@ -333,8 +355,10 @@ def new_potentialbest(fx0,x0,design_space,length,basefile,metric,metric_values,n
         value,number = get_results(length,length+1,design_space, basefile,metric)
         metric_values.extend(value)
         numbers.extend(number)
-        f_temp = min(metric_values)
-        x_temp = design_space[numbers[metric_values.index(f_temp)]]
+        f_temp = min(list(value))
+        x_temp =  dict(x_new)
+        #f_temp = min(metric_values)
+        #x_temp = design_space[numbers[metric_values.index(f_temp)]]
         length = len(design_space)
 
         if f_temp < fx0:
@@ -357,7 +381,7 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
     # Initializations
     p =[]
     total_runs = 50
-    m = 13
+    m = 12
     n = int(0.1*total_runs) # Number of local samples
     l = int(0.1*total_runs) # number of samples in the restart phase
     t = 0.4 # Threshold for neighborhood size
@@ -396,7 +420,7 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
         metric_values,numbers = get_results(0,m,design_space, basefile,metric)
         fx0 = min(metric_values)
         x0 = design_space[numbers[metric_values.index(fx0)]]
-        fx0,x0,design_space,metric_values,numbers = confirm(x0,design_space,basefile,metric,m,m+1,metric_values,numbers)
+        fx0,x0,design_space,metric_values,numbers = confirm(fx0,x0,design_space,basefile,metric,m,m+1,metric_values,numbers)
         n_start = dict(start)
         n_end = dict(end)
         local_search = True
@@ -503,8 +527,10 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
             length = len(design_space)
             # Step 5: Restart phase
             design_space,metric_values,numbers = restart_phase(design_space,result,start,end,step,typ,relations,p,conf,l,length, basefile,metric)
+            print metric_values
             fx_new = min(metric_values)
             x_new = design_space[numbers[metric_values.index(fx_new)]]
+            print numbers[metric_values.index(fx_new)]
             n_start = dict(start)
             n_end = dict(end)
             values = get_metric(metric)
@@ -555,7 +581,8 @@ def main():
     for r in rel_dict:
         split = rel_dict[r].split(",")
         relations[r] = list(split[:len(split)-1])
-
+    
+    print start
     #print relations
     hill_climbing(conf,sample,start,end,step,typ,relations,basefile,metric)
 

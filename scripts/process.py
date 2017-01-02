@@ -172,30 +172,30 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
     with open(direc+'topology'+index+'.json') as data_file:
         data = json.load(data_file)
         for i in data['spouts']:
-            throughput = int(i['acked']/duration)
+            throughput = int(i['acked']/(duration-10))
             latency = float(i['completeLatency'])
 
     #Extract the average capacity and processing latency info
-    for c in components:
-        print c+"\n"
-        with open(direc+c+'_'+index+'.json') as data_file:
-            data = json.load(data_file)
-            capacity = 0
-            process_latency = 0
-            execute_latency = 0
-            for i in data['executorStats']:
-                #print "Capacity: "+i['capacity']
-                capacity += float(i['capacity'])
-                #print "Processing Latency: " +i['processLatency']
-                process_latency += float(i['processLatency'])
-                #print "Execute Latency: " + i['executeLatency']
-                execute_latency += float(i['executeLatency'])
+    #for c in components:
+    #    print c+"\n"
+    #    with open(direc+c+'_'+index+'.json') as data_file:
+    #        data = json.load(data_file)
+    #        capacity = 0
+    #        process_latency = 0
+    #        execute_latency = 0
+    #        for i in data['executorStats']:
+    #            #print "Capacity: "+i['capacity']
+    #            capacity += float(i['capacity'])
+    #            #print "Processing Latency: " +i['processLatency']
+    #            process_latency += float(i['processLatency'])
+    #            #print "Execute Latency: " + i['executeLatency']
+    #            execute_latency += float(i['executeLatency'])
 
-            cap[c] = capacity/len(data['executorStats']);
-            platency[c] = process_latency/len(data['executorStats']);
-            elatency[c] = execute_latency/len(data['executorStats']);
-    total_latency = sum(platency.values())
-    total_capacity = sum(cap.values())
+    #       cap[c] = capacity/len(data['executorStats']);
+    #        platency[c] = process_latency/len(data['executorStats']);
+    #        elatency[c] = execute_latency/len(data['executorStats']);
+    #total_latency = sum(platency.values())
+    #total_capacity = sum(cap.values())
 
     threads = dict()
     with open(direc+'topology'+index+'.json') as data_file:
@@ -205,19 +205,19 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
 
         for c in data['bolts']:
             bolt_threads[c['boltId']] = int(c['executors'])
-
+     
     fieldnames = list()
     data = list()
     fieldnames.append("no.")
     data.append(index)
     fieldnames.append("spout")
     data.append(spout_threads)
-    for c in components:
+    for c in bolt_threads.keys():
         fieldnames.append(c)
         data.append(bolt_threads[c])
-    for c in components:
-        fieldnames.append("cap_" + c)
-        data.append(format(cap[c],'.2f'))
+    #for c in bolt_threads.keys():
+    #    fieldnames.append("cap_" + c)
+    #    data.append(format(cap[c],'.2f'))
     fieldnames.append("throughput")
     data.append(throughput)
     '''fieldnames.append("latency")
@@ -328,6 +328,7 @@ def main():
         loaded_data = yaml.load(open("config_files/test"+index+".yaml",'r'))
         spout_num = int(loaded_data["component.spout_num"])
     lat = tail_latency(index,spout_num,percentile,skip_intervals)
+    print lat
     #print tail_99
     components = ['rolling_count','split']
     #Get the duration of the experiment to calculate the average throughput

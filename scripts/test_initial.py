@@ -53,11 +53,20 @@ def write(design_space, start,end ,basefile):
         os.makedirs(folder)
     for i in range(start,end):
         fname = folder+"/"+"test"+str(i)+".yaml"
-        selective_write(design_space[i-120],fname, basefile)
+        selective_write(design_space[i],fname, basefile)
+
+# Generate a random points using LHS
+def generate_design(result,start,end,step,typ,relations,p,conf,size):
+    design_space = list(dict())
+    for i in range(0,size):
+        result[conf] = start[conf]+(i*step[conf])
+        design_space.append(dict(result))
+        print result
+    return design_space
 
 # Generate a random points using LHS
 def generate_LHS(result,start,end,step,typ,relations,p,conf,size):
-    lhm = lhs(len(conf),samples=size, criterion="center")
+    lhm = lhs(len(conf),samples=size, criterion="maximin")
     lhs_space = list(dict())
     for i in range(0,len(lhm)):
         sample = lhm[i]
@@ -117,10 +126,7 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
 
     # Initializations
     p =[]
-    total_runs = 50
-    m = 30
-    n = int(0.1*total_runs) # Number of local samples
-    l = int(0.1*total_runs) # number of samples in the restart phase
+    m = 16
     t = 0.4 # Threshold for neighborhood size
     alpha = 0.75 # The shrinking factor
     alpha_passed =alpha
@@ -131,24 +137,18 @@ def hill_climbing(conf,sample,start,end,step,typ, relations,basefile, metric):
     metric_values = list()
     numbers = list()
     result = dict(sample)
-    np = n
     neighborhood_size = alpha_passed
     f_thresh = list()
     # Generate the first n samples using LHS
     #design_space = generate_initial.generate_initial(result,start,end,step,typ,relations,[],conf,m)
-    design_space = generate_LHS(result,start,end,step,typ,relations,[],conf,m)
+    #design_space = generate_LHS(result,start,end,step,typ,relations,[],conf,m)
+    
+    m = ((end[conf]-start[conf])/step[conf])+1
+    print "Total samples" + str(m)
+    design_space = generate_design(result,start,end,step,typ,relations,[],conf,m)
+
     # Get results and get the best configuration
-    metric_values,numbers = get_results(120,120+m,design_space, basefile,metric)
-    fx0 = min(metric_values)
-    x0 = design_space[numbers[metric_values.index(fx0)]]
-#    fx0,x0,design_space,metric_values,numbers = confirm(x0,design_space,basefile,metric,m,m+1,metric_values,numbers)
-    n_start = dict(start)
-    n_end = dict(end)
-    local_search = True
-    restart = True
-    x_center = dict(x0)
-    fx_center = fx0
-    state = "localsearch"
+    metric_values,numbers = get_results(0,m,design_space, basefile,metric)
 
 
 def main():
@@ -190,7 +190,13 @@ def main():
     print start
     #print relations
     #for i in range(0,9):
-    hill_climbing(conf,sample,start,end,step,typ,relations,basefile,metric)
+    name = 'component.split_bolt_num'
+    l = ((end[name]-start[name])/step[name])+1
+    print l
+    for i in range(0,l):
+        sample[name] = start[name] + (i*step[name])
+        hill_climbing(conf[0],sample,start,end,step,typ,relations,basefile,metric)
+        print "Next one"
 
 if __name__ == '__main__':
     main()

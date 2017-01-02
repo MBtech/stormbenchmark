@@ -17,7 +17,6 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 
-import storm.benchmark.metrics.LatencyConsumer;
 import storm.benchmark.metrics.Latencies;
 
 /** 
@@ -103,7 +102,9 @@ public class RankBolt implements IBasicBolt {
 		}
 		long time = System.currentTimeMillis();
                 long creation = (Long)input.getValue(2);
+                if(creation!=0l){
 		_latencies.add((int) (time-creation));
+                }
 		Collections.sort(_rankings, new Comparator<List>() {
 			@Override
 			public int compare(List o1, List o2) {

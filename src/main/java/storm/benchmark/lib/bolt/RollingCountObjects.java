@@ -80,7 +80,7 @@ public class RollingCountObjects  extends BaseRichBolt {
                                 counts[bucketToWipe] = 0; //  *这行代码很关键*
                                 long total = totalObjects(obj);
                                 if(currBucketVal!=0) {
-                                    _collector.emit(new Values(obj, total));
+                                    _collector.emit(new Values(obj, total,0l));
                                 }
                                 if(total==0) {
                                     _objectCounts.remove(obj);
