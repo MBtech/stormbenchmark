@@ -32,6 +32,7 @@ import org.apache.storm.tuple.Values;
 import org.apache.log4j.Logger;
 import storm.benchmark.lib.operation.WordSplit;
 import storm.benchmark.util.BenchmarkUtils;
+import storm.benchmark.metrics.Latencies;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -95,7 +96,40 @@ public abstract class WordCount extends StormBenchmark {
 
   }
 
-  public static class Count extends BaseBasicBolt {
+  public static class ACount extends BaseBasicBolt {
+    public static final String FIELDS_WORD = "word";
+    public static final String FIELDS_COUNT = "count";
+    transient Latencies _latencies;
+
+    Map<String, Integer> counts = new HashMap<String, Integer>();
+
+    @Override
+    public void prepare(Map stormConf, TopologyContext context) {
+     _latencies = new Latencies();
+     context.registerMetric("latencies", _latencies, 5);
+    }
+
+    @Override
+    public void execute(Tuple tuple, BasicOutputCollector collector) {
+      String word = tuple.getString(0);
+      Integer count = counts.get(word);
+      if (count == null)
+        count = 0;
+      count=count+ (Integer) tuple.getValue(1);
+      counts.put(word, count);
+    long creation = (Long) tuple.getValue(2);
+    long time = System.currentTimeMillis();
+    _latencies.add((int) (time-creation));
+      //collector.emit(new Values(word, count, creation));
+    }
+
+    @Override
+    public void declareOutputFields(OutputFieldsDeclarer declarer) {
+      declarer.declare(new Fields(FIELDS_WORD, FIELDS_COUNT, "timestamp"));
+    }
+  }
+
+public static class Count extends BaseBasicBolt {
     public static final String FIELDS_WORD = "word";
     public static final String FIELDS_COUNT = "count";
 
@@ -113,13 +147,12 @@ public abstract class WordCount extends StormBenchmark {
         count = 0;
       count++;
       counts.put(word, count);
-      collector.emit(new Values(word, count));
+      collector.emit(new Values(word, count, tuple.getValue(1)));
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-      declarer.declare(new Fields(FIELDS_WORD, FIELDS_COUNT));
+      declarer.declare(new Fields(FIELDS_WORD, FIELDS_COUNT, "timestamp"));
     }
   }
-
 }
