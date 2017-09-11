@@ -1,0 +1,6 @@
+topology.workers: +1
+component.rolling_count_bolt_num: +1
+component.split_bolt_num: +1
+component.spout_num: +1
+topology.acker.executors: +1
+topology.max.spout.pending: +1

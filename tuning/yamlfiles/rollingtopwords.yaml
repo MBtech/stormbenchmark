@@ -1,0 +1,24 @@
+benchmark.spout.interval: 10000
+benchmark.spout.tuple_limit: 450000
+component.rank_bolt_num: 6
+component.rolling_count_bolt_num: 6
+component.split_bolt_num: 6
+component.spout_num: 6
+emit.frequency: 1
+metrics.enabled: true
+metrics.path: reports
+metrics.poll: 10000
+metrics.time: 3600000
+spout.file: /A_Tale_of_Two_City.txt
+topology.acker.executors: 6
+topology.executor.receive.buffer.size: 8192
+topology.executor.send.buffer.size: 8192
+topology.max.spout.pending: 4000
+topology.name: RollingTopWords
+topology.tdigestserver: 130.104.230.106
+topology.tdigestserver.port: 11111
+topology.transfer.buffer.size: 8192
+topology.worker.childopts: -Xmx8g -Djava.net.preferIPv4Stack=true
+topology.workers: 6
+window.length: 10
+worker.profiler.enabled: true

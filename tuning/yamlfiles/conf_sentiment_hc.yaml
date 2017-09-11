@@ -1,0 +1,9 @@
+topology.workers: 6,12,3
+component.logging_bolt_num: 6,30,3
+component.negative_bolt_num: 6,30,3
+component.positive_bolt_num: 6,30,3
+component.score_bolt_num: 6,30,3
+component.spout_num: 6,12,3
+component.stemming_bolt_num: 6,30,3
+topology.acker.executors: 6,12,3
+topology.max.spout.pending: 2000,10000,2000

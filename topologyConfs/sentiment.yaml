@@ -1,0 +1,25 @@
+benchmark.spout.interval: 10000
+benchmark.spout.tuple_limit: 450000
+component.stemming_bolt_num: 12
+component.positive_bolt_num: 12
+component.negative_bolt_num: 12
+component.score_bolt_num: 12
+component.logging_bolt_num: 12
+component.spout_num: 6
+emit.frequency: 1
+metrics.enabled: true
+metrics.path: reports
+metrics.poll: 10000
+metrics.time: 3600000
+spout.file: /A_Tale_of_Two_City.txt
+topology.acker.executors: 6
+topology.executor.receive.buffer.size: 4096
+topology.executor.send.buffer.size: 4096
+topology.max.spout.pending: 2000
+topology.name: SentimentAnalysis
+topology.transfer.buffer.size: 4096
+topology.worker.childopts: -Xmx8g -Djava.net.preferIPv4Stack=true
+topology.workers: 6
+window.length: 10
+worker.profiler.enabled: true
+topology.tdigestserver: 130.104.230.106
