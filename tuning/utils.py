@@ -5,6 +5,7 @@ import random
 import math
 import os
 import yaml
+from pyDOE import *
 from collections import OrderedDict
 
 # Returns an ordered dictionary based on the order in which the parameters were found in the file
@@ -126,3 +127,28 @@ def generate_random(result,start,end,step,typ,relations,p,conf):
                         result[e] = pow(2,int(math.ceil(math.log(result[c],2)))+1)
         i = i +1
     return result
+def generate_LHS(result,start,end,step,typ,relations,p,conf,size):
+    lhm = lhs(len(conf),samples=size)
+    lhs_space = list(dict())
+    for i in range(0,len(lhm)):
+        sample = lhm[i]
+        j =0
+        print sample
+        #print typ
+        for c in conf:
+            if c in typ.keys():
+                if typ[c] == "boolean":
+                # FIXME: This shouldn't be a random choice
+                    result[c] =  random.choice([True,False])
+                else:
+                    result[c] = pow(2,int(start[c] + (end[c] - start[c])*sample[j]))
+            else:
+                result[c] = roundMultiple(int(start[c] + (end[c] - start[c])*sample[j]), step[c])
+            if c in relations:
+                for e in relations[c]:
+                    result[e] = pow(2,int(math.ceil(math.log(result[c],2))))
+                    if result[c]*1.1>result[e]:
+                        result[e] = pow(2,int(math.ceil(math.log(result[c],2)))+1)
+            j +=1
+        lhs_space.append(dict(result))
+    return lhs_space

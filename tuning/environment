@@ -1,0 +1,4 @@
+export STORM_HOME=~/ansible-test/storm/apache-storm-1.0.1
+export REDIS_HOME=~/bilal/redis-3.2.0/src
+export TOPOLOGY=RollingTopWords
+export CONF=rollingtopwords.yaml
