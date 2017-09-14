@@ -5,6 +5,7 @@ import numpy
 from collections import OrderedDict
 import utils
 import pandas
+import sys
 from pyDOE import *
 
 def put_limits(value,start,end,step):
@@ -58,9 +59,9 @@ def get_parents(design_space, top, rand_select,metric):
     return [design_space[rand_parents[1]],design_space[rand_parents[1]]]
 
 def do_mutations(children, mu_rate, design_space, start, end, step, typ,relations, conf):
-"""
-Perform mutations based on the mutation probability
-"""
+    """
+    Perform mutations based on the mutation probability
+    """
     mutated_children  = list()
     for child in children:
         if numpy.random.choice([True, False], 1, p=[mu_rate , 1-mu_rate]):
@@ -73,9 +74,9 @@ Perform mutations based on the mutation probability
     return mutated_children
 
 def do_crossover(parent_configs):
-"""
-Do the crossover between the two parents and get the child
-"""
+    """
+    Do the crossover between the two parents and get the child
+    """
     child = dict() 
     for c in parent_configs[0].keys():
         if numpy.random.choice([True, False], 1):
@@ -101,7 +102,7 @@ def ga(conf,sample,start,end,step,typ, relations,basefile, metric):
     # Initializations
     p =[]
     total_runs = 50
-    m = 2 #initial sample size
+    m = 12 #initial sample size
     mu_rate = 0.1 # Mutation rate
     rand_select = 0.1 # Random parent selection rate
     top = 0.2 #Percentage of top parents selected 

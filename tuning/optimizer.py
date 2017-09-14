@@ -5,6 +5,7 @@ import utils
 from hc_lhs_stateful import hc
 from hc_simple_improved import mhc
 from rule_based import rule_based 
+from ga import ga
 
 def main():
     # python rrs.py conf.yaml rollingtopwords.yaml lat_90 relations.yaml lat.yaml tp.yaml algorithm
@@ -70,6 +71,8 @@ def main():
         hc(conf,sample,start,end,step,typ,relations,basefile,metric)
     elif algo == "mhc":
         mhc(conf,sample,start,end,step,typ,relations,basefile,metric)
+    elif algo == "ga":
+        ga(conf,sample,start,end,step,typ,relations,basefile,metric)
     else:
 	rule_based(conf,sample,start,end,step,typ,relations,basefile,metric,lat_p,tp_p,behav_tp,behav_lat)
 if __name__ == '__main__':
