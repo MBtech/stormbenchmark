@@ -75,7 +75,7 @@ cp config_files/test$i.yaml ~/.storm/$CONF
 ../bin/stormbench -storm $STORM_HOME/bin/storm -jar ../target/storm-benchmark-0.1.0-jar-with-dependencies.jar -conf ~/.storm/$CONF  storm.benchmark.tools.Runner storm.benchmark.benchmarks.$TOPOLOGY &
 utilizations $i
 kill -9 $(jps | grep "TServer" | awk '{print $1}')
-nohup java -cp ~/bilal/TDigestService/target/TDigestService-1.0-SNAPSHOT-jar-with-dependencies.jar com.tdigestserver.TServer 11111 &
+nohup java -cp $TDIGEST_JAR com.tdigestserver.TServer 11111 &
 
 sleep 20
 end=$((SECONDS+200))

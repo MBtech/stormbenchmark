@@ -10,10 +10,8 @@ import subprocess
 import pandas
 from pyDOE import *
 import warnings
-import generate_initial
 import pickle
 import utils
-
 
 def dict_product(dic):
     product = [x for x in apply(itertools.product, dic.values())]
@@ -54,7 +52,7 @@ def in_neighborhood(x0, xi, u, l, r, n1, step, typ, conf):
 
 # Generate a random points using LHS
 def generate_LHS(result,start,end,step,typ,relations,p,conf,size):
-    lhm = lhs(len(conf),samples=size)
+    lhm = lhs(len(conf),samples=size,criterion='maximin')
     lhs_space = list(dict())
     for i in range(0,len(lhm)):
         sample = lhm[i]
@@ -103,28 +101,6 @@ def get_neighbor(result,start,end,step,typ,p,conf):
         xi = utils.generate_random(result,start,end,step,typ,p,conf)
     return xi
 
-# Get results for the specific configurations
-def get_results(start, end, design_space, basefile, metric):
-    utils.write(design_space, start,end ,basefile)
-    for i in range(start, end):
-        bashCommand = "./onescript.sh " + str(i)
-        process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-        output = process.communicate()[0]
-
-    cw = pandas.read_csv("numbers.csv")
-    metric_values = list()
-    ret_array = list()
-    for i in range(start, end):
-        if i in list(cw['no.']):
-            ret_array.append(i)
-            metric_values.append(utils.utility_function(metric,cw,i))
-        else:
-           ret_array.append(i)
-           metric_values.append(sys.maxint)
-
-    print metric_values
-    print ret_array
-    return metric_values,ret_array
 
 # Get the metric readings for all experiments
 def get_metric(metric):
@@ -178,13 +154,6 @@ def get_pbest(design_space, numbers, conf, metric_values, start,end, step, typ, 
                         config[e] = pow(2,int(math.ceil(math.log(config[c],2)))+1)
     return config
 
-def initial_sample():
-    design_space = generate_initial.generate_initial(result,start,end,step,typ,relations,p,conf,m)
-    metric_values,numbers = get_results(0,m,design_space, basefile,metric)
-    fx0 = min(metric_values)
-    x0 = design_space[numbers[metric_values.index(fx0)]]
-
-
 def local_search():
     n_start, n_end = get_neighborhood(x0,result,n_start,n_end,step,typ,p,conf,alpha_passed)
     print n_start
@@ -200,7 +169,7 @@ def local_search():
         print "No new configuration found. Going to restart phase"
 
     # Update the best configuration information
-    metric_values,numbers = get_results(length,length+np,design_space, basefile,metric)
+    metric_values,numbers = utils.get_results(length,length+np,design_space, basefile,metric)
     fx_local = min(list(metric_values))
     x_local = design_space[numbers[metric_values.index(fx_local)]]
 
@@ -211,7 +180,7 @@ def change_best():
 def restart_phase(design_space,result,start,end,step,typ,relations,p,conf,l,length, basefile,metric):
     design_space.extend(generate_LHS(result,start,end,step,typ,relations,p,conf,l))
     # Get results and get the best configuration
-    metric_values,numbers = get_results(length,length+l,design_space, basefile,metric)
+    metric_values,numbers = utils.get_results(length,length+l,design_space, basefile,metric)
     return design_space,metric_values,numbers
 
 def if_less(x,y):
@@ -223,13 +192,13 @@ def post_restart_phase(values,fx_new,x_new,fx0,x0, length, design_space,basefile
         if fx_new < fx0:
             print "Potential best result"
             design_space.append(x_new)
-            value,number = get_results(length,length+1,design_space, basefile,metric)
+            value,number = utils.get_results(length,length+1,design_space, basefile,metric)
             metric_values.extend(value)
             numbers.extend(number)
             f_temp = min(list(value))
-            x_temp =  dict(x_new)
             #f_temp = min(metric_values)
             #x_temp = design_space[numbers[metric_values.index(f_temp)]]
+            x_temp = dict(x_new)
             length = len(design_space)
 
             if f_temp < fx0:
@@ -251,10 +220,10 @@ def post_restart_phase(values,fx_new,x_new,fx0,x0, length, design_space,basefile
         else:
             local_search = False
             return "restart",design_space,metric_values,numbers,fx0,x0,length
-    return fx0,x0,design_space,metric_values,numbers
+
 def confirm(fx0,x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
     design_space.append(x0)
-    value,number = get_results(n1,n2,design_space, basefile,metric)
+    value,number = utils.get_results(n1,n2,design_space, basefile,metric)
     metric_values.extend(value)
     numbers.extend(number)
     fx_temp = min(list(value))
@@ -270,25 +239,16 @@ def confirm(fx0,x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
     #x0 = design_space[numbers[metric_values.index(fx0)]]
     return fx0,x0,design_space,metric_values,numbers
 
-#def confirm(x0,design_space,basefile,metric,n1,n2,metric_values,numbers):
-#    design_space.append(x0)
-#    value,number = get_results(n1,n2,design_space, basefile,metric)
-#    metric_values.extend(value)
-#    numbers.extend(number)
-#    fx0 = min(metric_values)
-#    x0 = design_space[numbers[metric_values.index(fx0)]]
-#    return fx0,x0,design_space,metric_values,numbers
-
 def new_best(fx0,x0,fx_local,x_local,length,np,design_space,basefile,metric,metric_values,numbers):
     if fx_local < fx0:
         print "Potential best result"
         design_space.append(x_local)
-        value,number = get_results(length+np,length+np+1,design_space, basefile,metric)
+        value,number = utils.get_results(length+np,length+np+1,design_space, basefile,metric)
         metric_values.extend(value)
         numbers.extend(number)
-        f_temp = min(list(value))
-        x_temp =  dict(x_local)
         #f_temp = min(metric_values)
+        f_temp = min(list(value))
+        x_temp = dict(x_local)
         #x_temp = design_space[numbers[metric_values.index(f_temp)]]
         print "Verifying"
         if f_temp < fx0:
@@ -304,7 +264,7 @@ def new_best(fx0,x0,fx_local,x_local,length,np,design_space,basefile,metric,metr
 def new_potentialbest(fx0,x0,design_space,length,basefile,metric,metric_values,numbers,neighborhood_size,alpha_passed,conf,n_start,n_end, step, typ,relations):
     x_new = get_pbest(design_space, numbers, conf, metric_values, n_start,n_end, step, typ,relations)
     design_space.append(x_new)
-    val,num = get_results(length,length+1,design_space, basefile,metric)
+    val,num = utils.get_results(length,length+1,design_space, basefile,metric)
     metric_values.extend(val)
     numbers.extend(num)
     fx_new = val
@@ -312,11 +272,11 @@ def new_potentialbest(fx0,x0,design_space,length,basefile,metric,metric_values,n
     if fx_new < fx0:
         print "Potential best result"
         design_space.append(x_new)
-        value,number = get_results(length,length+1,design_space, basefile,metric)
+        value,number = utils.get_results(length,length+1,design_space, basefile,metric)
         metric_values.extend(value)
         numbers.extend(number)
         f_temp = min(list(value))
-        x_temp =  dict(x_new)
+        x_temp = dict(x_new)
         #f_temp = min(metric_values)
         #x_temp = design_space[numbers[metric_values.index(f_temp)]]
         length = len(design_space)
@@ -336,7 +296,7 @@ def new_potentialbest(fx0,x0,design_space,length,basefile,metric,metric_values,n
 
     return False,x0,fx0,alpha_passed,neighborhood_size,length
 
-def mhc(conf,sample,start,end,step,typ, relations,basefile, metric):
+def hc(conf,sample,start,end,step,typ, relations,basefile, metric):
 
     # Initializations
     p =[]
@@ -375,10 +335,9 @@ def mhc(conf,sample,start,end,step,typ, relations,basefile, metric):
     else:
         f_thresh = list()
         # Generate the first n samples using LHS
-	print result
-        design_space = generate_initial.generate_initial(result,start,end,step,typ,relations,[],conf,m)
+        design_space = generate_LHS(result,start,end,step,typ,relations,p,conf,m)
         # Get results and get the best configuration
-        metric_values,numbers = get_results(0,m,design_space, basefile,metric)
+        metric_values,numbers = utils.get_results(0,m,design_space, basefile,metric)
         fx0 = min(metric_values)
         x0 = design_space[numbers[metric_values.index(fx0)]]
         fx0,x0,design_space,metric_values,numbers = confirm(fx0,x0,design_space,basefile,metric,m,m+1,metric_values,numbers)
@@ -421,7 +380,7 @@ def mhc(conf,sample,start,end,step,typ, relations,basefile, metric):
             else:
                 # Update the best configuration information
                 print np, length
-                metric_values,numbers = get_results(length,length+np,design_space, basefile,metric)
+                metric_values,numbers = utils.get_results(length,length+np,design_space, basefile,metric)
                 fx_local = min(list(metric_values))
                 x_local = design_space[numbers[metric_values.index(fx_local)]]
 
@@ -491,7 +450,6 @@ def mhc(conf,sample,start,end,step,typ, relations,basefile, metric):
             print metric_values
             fx_new = min(metric_values)
             x_new = design_space[numbers[metric_values.index(fx_new)]]
-            print numbers[metric_values.index(fx_new)]
             n_start = dict(start)
             n_end = dict(end)
             values = get_metric(metric)
@@ -507,4 +465,45 @@ def mhc(conf,sample,start,end,step,typ, relations,basefile, metric):
     print "Best metric values is " + str(fx0)
 
 
+def main():
+    warnings.simplefilter('ignore', numpy.RankWarning)
+    # python hc_lhs_stateful.py conf.yaml rollingtopwords.yaml lat_90 relations.yaml
+    conf_file = sys.argv[1]
+    basefile = sys.argv[2]
+    metric = sys.argv[3]
+    ref = open(conf_file, "r")
+    sample = yaml.load(ref)
+    result = dict(sample)
+    start = dict(); end = dict(); step = dict(); typ = dict()
+    ref = open(conf_file, "r")
+    conf = ordered_load(ref, yaml.SafeLoader).keys()
+    for k in sample:
+        vrange = sample[k]
+        if len(vrange.split(","))==2:
+            start[k] = int(vrange.split(",")[0])
+            end[k] = int(vrange.split(",")[1])
+        if len(vrange.split(","))==3:
+            start[k] = int(vrange.split(",")[0])
+            end[k] = int(vrange.split(",")[1])
+            step[k] = int(vrange.split(",")[2])
+        if len(vrange.split(","))==4:
+            typ[k] = vrange.split(",")[3]
+            if vrange.split(",")[2] != "null":
+                step[k] = int(vrange.split(",")[2])
+                start[k] = int(vrange.split(",")[0])
+                end[k] = int(vrange.split(",")[1])
+
+    relation_file = sys.argv[4]
+    rel = open(relation_file, "r")
+    rel_dict = dict(yaml.load(rel))
+    relations = dict()
+    for r in rel_dict:
+        split = rel_dict[r].split(",")
+        relations[r] = list(split[:len(split)-1])
+
+    #print relations
+    hc(conf,sample,start,end,step,typ,relations,basefile,metric)
+
+if __name__ == '__main__':
+    main()
 

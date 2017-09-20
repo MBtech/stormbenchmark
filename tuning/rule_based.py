@@ -486,7 +486,7 @@ def rule_based(conf,sample,start,end,step,typ, relations,basefile, metric,lat_p,
 
 def main():
     warnings.simplefilter('ignore', numpy.RankWarning)
-    # python rrs.py conf.yaml rollingtopwords.yaml lat_90 relations.yaml
+    #python rule_based.py yamlfiles/conf_rollingtopwords_hc.yaml rollingtopwords.yaml lat_90,throughput=150000 yamlfiles/relations.yaml yamlfiles/lat_rank_rc.yaml yamlfiles/tp_rank_rc.yaml
     conf_file = sys.argv[1]
     basefile = sys.argv[2]
     metric = sys.argv[3]

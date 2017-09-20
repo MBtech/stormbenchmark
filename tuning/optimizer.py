@@ -2,8 +2,8 @@ import yaml
 import os
 import sys
 import utils
-from hc_lhs_stateful import hc
-from hc_simple_improved import mhc
+from hc import hc
+from mhc import mhc
 from rule_based import rule_based 
 from ga import ga
 
