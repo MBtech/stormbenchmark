@@ -4,3 +4,4 @@ export TOPOLOGY=RollingCount
 export CONF=rollingcount.yaml
 export TDIGEST_JAR=~/bilal/TDigestService/target/TDigestService-1.0-SNAPSHOT-jar-with-dependencies.jar
 export BENCHMARK_TIME=200
+export TSERVER_PORT=11111

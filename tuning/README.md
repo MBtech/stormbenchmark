@@ -22,7 +22,7 @@ Build TDigestServer and Install the library using
     mvn package
     mvn clean install
 
-TDigest is used for collecting latency metrics from the benchmark topologies. However, if you plan on using your own topologies and metrics then there is no need for this step. 
+TDigest is used for collecting latency metrics from the benchmark topologies. However, if you plan on using your own topologies and metrics then there is no need for this step. We are working towards providing support for custome metrics. 
 
 Setup and start your Apache Storm cluster. Take a look at the guide on [Storm's website](http://storm.apache.org/releases/1.0.3/Setting-up-a-Storm-cluster.html)
 
@@ -30,12 +30,17 @@ Setup and start HDFS cluster. Check online documentation on how to setup HDFS Cl
 
 Copy the files in the stormbenchmark/data folder into the root directory of the HDFS cluster. If you store the files somewhere else you would have to change the path in the topology conf files accordingly. 
 
+On the master node, copy topologyConfs folder to ~/.storm that is used as a default folder where configuration files are looked up.
+    mkdir ~/.storm
+    cp -R topologyConfs/* ~/.storm/
 
-(WIP)
+## Yaml Files: 
+Details regarding the yaml file are presented in the wiki.
 
 
 ## Usage:
-The file ```tuning/environment``` needs to be change and relevant paths need to be replaced for the system to work properly
+The file ```tuning/environment``` needs to be changed. Relevant paths and topology names need to be replaced for the system to work properly.
+For the example topologies available in the repos the names are: RollingCount, RollingTopWords and SentimentAnalysis. 
 
 The optimization algorithms currently available are:
 - Hill Climbing
