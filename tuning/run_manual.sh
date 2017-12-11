@@ -84,7 +84,7 @@ if [[ $flag ]]; then
 
   echo "Current iteration number is $i"
 #Arguments: Directory, Index, Threads, number of nodes, number of spout, percentile latency, skip intervals, tolerance
-  if python process.py json_files/ $i 90 3 3 99 10 1.1; then echo "Exit code of 0, success"; else continue; fi
+  if python process.py json_files/ $i 90 3 3 99 10 1.1 $2; then echo "Exit code of 0, success"; else continue; fi
 
   kill -9 $(jps | grep "TServer" | awk '{print $1}')
   break

@@ -160,7 +160,7 @@ def multiplicative_dec(cap,components,bolt_threads,nprocs,total_capacity,platenc
 
 
 
-def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration):
+def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration,detail=False):
     cap = dict()
     platency = dict()
     elatency = dict()
@@ -174,6 +174,9 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
         for i in data['spouts']:
             throughput = int(i['acked']/(duration-10))
             latency = float(i['completeLatency'])
+        for i in data['bolts']:
+            platency[i['boltId']] = float(i['processLatency'])
+            elatency[i['boltId']] = float(i['executeLatency'])
 
     #Extract the average capacity and processing latency info
     #for c in components:
@@ -232,6 +235,14 @@ def component_info(direc,index,components,nthreads,nprocs,lat,tolerance,duration
         data.append(lat[(i-50)/10])
     fieldnames.append("lat_99")
     data.append(lat[len(lat)-1])   
+    
+    if detail==True:
+        for c in platency.keys():
+            fieldnames.append(c+"_processLatency")
+            data.append(platency[c])
+            fieldnames.append(c+"_executeLatency")
+            data.append(elatency[c])
+
     flag = False
     flag = exists('numbers.csv')
     with open('numbers.csv', 'a') as csvfile:
@@ -324,6 +335,9 @@ def main():
     percentile = int(sys.argv[6])
     skip_intervals = int(sys.argv[7])
     tolerance = float(sys.argv[8])
+    detail = False
+    if len(sys.argv)==10: 
+        detail = sys.argv[9] in ['True', 'true']
     if spout_num==0:
         loaded_data = yaml.load(open("config_files/test"+index+".yaml",'r'))
         spout_num = int(loaded_data["component.spout_num"])
@@ -334,7 +348,7 @@ def main():
     #Get the duration of the experiment to calculate the average throughput
     duration = int(getduration())*10
     print "duration: " + str(duration)
-    threads,data=component_info(direc, index,components, nthreads, nprocs,lat,tolerance,duration)
+    threads,data=component_info(direc, index,components, nthreads, nprocs,lat,tolerance,duration, detail=detail)
     indicies = dict()
     indicies["resources"]=[2,3]
     indicies["metric"]=9
