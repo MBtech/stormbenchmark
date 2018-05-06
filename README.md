@@ -1,6 +1,6 @@
 # Storm's Automatic Parameter tuning [![Build Status](https://travis-ci.org/intel-hadoop/storm-benchmark.svg?branch=master)](https://travis-ci.org/intel-hadoop/storm-benchmark?branch=master)
 
-### Note: The repository is going through major overhaul and refractoring to make it ease to use. Further documentation will be added along with refractoring process. Current version of the system can be used by following the guide in `tuning/README.md`
+### Note: The repository is going through major overhaul and refractoring to make it ease to use. Further documentation will be added along with refractoring process. Current version of the system can be used by following the guide in `tuning/README.md`. The update has been delayed because of my other engagements if you are having any problems in using it. Please contact me and I might be able to solve your issue directly. 
 
 ## Benchmark
 The benchmarking framework is main based on the [Intel storm benchmark](https://github.com/intel-hadoop/storm-benchmark). We have added several other benchmarking applications as well.
